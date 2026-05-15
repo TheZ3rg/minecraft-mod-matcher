@@ -1,0 +1,23 @@
+import zipfile
+from PySide6.QtGui import QPixmap
+from pathlib import Path, PurePosixPath
+
+def load_icon_from_archive(archive_path: Path, icon_internal_path: PurePosixPath) -> QPixmap:
+    """
+    Извлекает картинку из ZIP-архива и превращает её в QPixmap.
+    Возвращает пустой QPixmap, если иконка не найдена или архив поврежден.
+    """
+    pixmap = QPixmap()
+    
+    if not archive_path or not icon_internal_path:
+        return pixmap
+
+    try:
+        with zipfile.ZipFile(archive_path, 'r') as archive:
+            image_data = archive.read(str(icon_internal_path))
+            
+            pixmap.loadFromData(image_data)
+    except Exception as e:
+        print(f"Не удалось загрузить иконку из {archive_path.name}: {e}")
+        
+    return pixmap
