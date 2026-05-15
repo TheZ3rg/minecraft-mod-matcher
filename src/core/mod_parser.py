@@ -2,17 +2,18 @@
 Модуль для парсинга метаданных модификаций.
 
 Предоставляет функции для чтения и извлечения стандартизированной информации
-о модификациях Minecraft (название, версия, авторы, зависимости) из архивов 
-(.jar, .zip). Поддерживает официальные спецификации загрузчиков: Fabric, Quilt, 
+о модификациях Minecraft (название, версия, авторы и т.д.) из архивов 
+(.jar, .zip). Поддерживает официальные спецификации загрузчиков Fabric, Quilt, 
 Forge, NeoForge и Legacy Forge.
 """
 
 import json
 import zipfile
 import tomllib
-from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, Dict, List, Optional, Union
+
+from .mod_info import ModInfo
 
 
 METADATA_FILES_PRIORITY = [
@@ -26,35 +27,6 @@ METADATA_FILES_PRIORITY = [
 
 class ModParseError(Exception):
     """Ошибка при разборе метаданных модификации."""
-
-
-@dataclass
-class ModInfo:
-    """
-    Описание метаданных модификации Minecraft.
-
-    Attributes:
-        mod_id: Внутренний идентификатор мода (id).
-        name: Название модификации.
-        authors: Список авторов модификации.
-        version: Версия модификации.
-        minecraft_version: Версия Minecraft, для которой предназначен мод.
-        description: Описание модификации.
-        icon_path: Путь к файлу иконки внутри архива.
-        source_path: Полный путь к исходному файлу архива.
-        metadata_file_name: Имя найденного файла метаданных в архиве.
-        loader_type: Тип загрузчика (Fabric, Quilt, Forge, NeoForge, Legacy Forge).
-    """
-    mod_id: Optional[str] = None
-    name: Optional[str] = None
-    authors: Optional[List[str]] = None
-    version: Optional[str] = None
-    minecraft_version: Optional[str] = None
-    description: Optional[str] = None
-    icon_path: Optional[PurePosixPath] = None
-    source_path: Optional[Path] = None
-    metadata_file_name: Optional[str] = None
-    loader_type: Optional[str] = None
 
 
 def parse_mod_file(file_path: Union[str, Path]) -> ModInfo:
@@ -97,6 +69,9 @@ def parse_mod_file(file_path: Union[str, Path]) -> ModInfo:
             mod_info = _extract_metadata(metadata_file_name, data)
             mod_info.source_path = archive_path
             mod_info.metadata_file_name = metadata_file_name
+
+            mod_info.data_source = "Local"
+            
             return mod_info
 
     except zipfile.BadZipFile as exc:

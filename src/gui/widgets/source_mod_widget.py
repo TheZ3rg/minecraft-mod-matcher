@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout,
                                QLabel, QGroupBox)
 from PySide6.QtGui import QFont
 
-from core.mod_parser import ModInfo
+from core.mod_info import ModInfo
 
 
 class SourceModWidget(QWidget):

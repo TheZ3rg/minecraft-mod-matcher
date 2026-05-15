@@ -20,8 +20,8 @@ from .widgets.folders_selector_widget import FolderSelectorWidget
 
 import core.backup as backup
 import core.mod_parser as mod_parser
-from core.mod_parser import ModInfo, ModParseError
 import core.file_scanner as file_scanner
+from core.mod_info import ModInfo
 
 from api.minecraft_versions import MinecraftVersions
 
@@ -32,7 +32,7 @@ class MainWindow(QMainWindow):
     Предоставляет пользовательский интерфейс для:
         - Указания директории с модами и директории для загрузки.
         - Отображения списка модов.
-        - Фильтрации модов по версии Minecraft, API и загрузчику.
+        - Фильтрации модов по версии Minecraft и загрузчику.
         - Просмотра информации о выбранном моде.
         - Просмотра информации о найденной версии мода.
         - Создания резервных копий модов.
@@ -43,7 +43,6 @@ class MainWindow(QMainWindow):
         target_version_info (TargetVersionWidget): Виджет для отображения информации о найденной версии.
         folders_selector (FolderSelectorWidget): Виджет выбора папок.
         versions_combobox (QComboBox): Выбор версии Minecraft.
-        api_combobox (QComboBox): Выбор платформы (Modrinth/CurseForge).
         loader_combobox (QComboBox): Выбор загрузчика (Forge/Fabric/Quilt/NeoForge).
     """
     def __init__(self):
@@ -91,12 +90,6 @@ class MainWindow(QMainWindow):
         self.versions_combobox = QComboBox()
         filters_layout.addWidget(self.versions_combobox)
         filters_layout.addStretch(1)
-        
-        filters_layout.addWidget(QLabel("API:"))
-        self.api_combobox = QComboBox()
-        self.api_combobox.addItems(["Modrinth", "CurseForge"])
-        filters_layout.addWidget(self.api_combobox)
-        filters_layout.addStretch(1)
 
         filters_layout.addWidget(QLabel("Загрузчик:"))
         self.loader_combobox = QComboBox()
@@ -117,7 +110,7 @@ class MainWindow(QMainWindow):
 
         splitter.addWidget(right_panel)
 
-        splitter.setSizes([400, 600])
+        splitter.setSizes([450, 550])
         splitter.setCollapsible(0, False)
         splitter.setCollapsible(1, False)
 
@@ -170,8 +163,9 @@ class MainWindow(QMainWindow):
             try:
                 info = mod_parser.parse_mod_file(str(file_path))
                 mods_info_list.append(info)
-            except ModParseError as e:
+            except mod_parser.ModParseError as e:
                 print(f"Ошибка: {e}")
+                mods_info_list.append(ModInfo(name=file_path.stem, source_path=file_path))
 
         self.mod_list.update_mod_list(mods_info_list)
         
