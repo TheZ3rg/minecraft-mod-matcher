@@ -165,6 +165,12 @@ class MainWindow(QMainWindow):
             self.source_mod_info.update_info(None)
             return
         
+        # Если уже запущен поток сканирования, останавливаем его перед запуском нового
+        # Это гарантирует, что не будет конфликтов при быстром выборе директорий
+        if hasattr(self, 'scanner_thread') and self.scanner_thread.isRunning():
+            self.scanner_thread.terminate()
+            self.scanner_thread.wait()
+        
         self.mod_list.mod_list.clear()
         self.mod_list.mod_list.addItem("🔍 Сканирование архивов, подождите...")
         self.source_mod_info.update_info(None)
@@ -202,11 +208,11 @@ class MainWindow(QMainWindow):
         self.status_widget.clear()
         logger.info(f"Список версий Minecraft успешно обновлен: {len(versions)} элементов.")
 
-    def _on_versions_error(self) -> None:
+    def _on_versions_error(self, error_msg: str) -> None:
         """Обработка ошибки загрузки версий."""
         self.versions_combobox.clear()
         self.versions_combobox.addItem("Ошибка")
-        self.status_widget.show_error("Не удалось загрузить список версий Minecraft:\nпроверьте интернет соединение и попробуйте еще раз")
+        self.status_widget.show_error(error_msg)
 
     def on_mod_selected(self, mod_info: ModInfo) -> None:
         """Обрабатывает выбор мода в списке.

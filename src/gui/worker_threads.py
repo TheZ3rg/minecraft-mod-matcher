@@ -75,7 +75,7 @@ class MinecraftVersionsLoaderThread(QThread):
             if self.api.load_versions():
                 self.versions_loaded.emit(self.api.release_versions)
             else:
-                self.error_occurred.emit("Не удалось загрузить версии Minecraft.")
+                self.error_occurred.emit("Не удалось загрузить версии Minecraft. Проверьте ваше интернет-соединение")
         except Exception as e:
             logger.exception(f"Ошибка в потоке загрузки версий: {e}")
             self.error_occurred.emit(str(e))
