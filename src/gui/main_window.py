@@ -13,6 +13,7 @@ from PySide6.QtGui import QIcon
 
 from pathlib import Path
 
+from .workers import ModScannerThread
 from .widgets.mod_list_widget import ModListWidget
 from .widgets.source_mod_widget import SourceModWidget
 from .widgets.target_version_widget import TargetVersionWidget
@@ -156,29 +157,27 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Ошибка создания резервной копии", str(e))
 
     def on_source_folder_changed(self, folder_path: str) -> None:
-        """Обрабатывает изменение исходной папки с модами.
-
-        Сканирует папку, парсит найденные файлы модов и обновляет виджет списка модов.
-        """
+        """Обрабатывает выбор исходной папки, запуская фоновое сканирование директории."""
         if not folder_path:
             self.mod_list.show_placeholder()
             self.source_mod_info.update_info(None)
             return
         
-        mod_paths = file_scanner.get_mod_paths(folder_path)
-        mods_info_list = []
-        
-        for file_path in mod_paths:
-            try:
-                info = mod_parser.parse_mod_file(str(file_path))
-                mods_info_list.append(info)
-            except mod_parser.ModParseError as e:
-                logger.error(f"Ошибка: {e}")
-                mods_info_list.append(ModInfo(name=file_path.stem, source_path=file_path))
-
-        self.mod_list.update_mod_list(mods_info_list)
-        
+        self.mod_list.mod_list.clear()
+        self.mod_list.mod_list.addItem("🔍 Сканирование архивов, подождите...")
         self.source_mod_info.update_info(None)
+
+        self.scanner_thread = ModScannerThread(folder_path)
+        
+        self.scanner_thread.scan_finished.connect(self._on_scan_finished)
+        
+        self.scanner_thread.scan_error.connect(lambda err: logger.error(f"Ошибка потока: {err}"))
+        
+        self.scanner_thread.start()
+
+    def _on_scan_finished(self, mods_info_list: list) -> None:
+        """Вызывается автоматически, когда фоновый поток заканчивает работу."""
+        self.mod_list.update_mod_list(mods_info_list)
 
     def on_mod_selected(self, mod_info: ModInfo) -> None:
         """Обрабатывает выбор мода в списке.

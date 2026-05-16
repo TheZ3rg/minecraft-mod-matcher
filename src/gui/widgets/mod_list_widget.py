@@ -153,7 +153,7 @@ class ModListWidget(QWidget):
         scaled_pixmap = pixmap.scaled(
             40, 40,
             Qt.AspectRatioMode.IgnoreAspectRatio,
-            Qt.TransformationMode.FastTransformation
+            Qt.TransformationMode.SmoothTransformation
         )
 
         return QIcon(scaled_pixmap)
