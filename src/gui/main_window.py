@@ -86,15 +86,18 @@ class MainWindow(QMainWindow):
         filters_layout = QHBoxLayout(filters_widget)
         filters_layout.setContentsMargins(20, 0, 20, 0)
         
+        filters_layout.addStretch()
         filters_layout.addWidget(QLabel("Версия:"))
         self.versions_combobox = QComboBox()
         filters_layout.addWidget(self.versions_combobox)
-        filters_layout.addStretch(1)
+        
+        filters_layout.addStretch()
 
         filters_layout.addWidget(QLabel("Загрузчик:"))
         self.loader_combobox = QComboBox()
         self.loader_combobox.addItems(["Forge", "Fabric", "Quilt", "NeoForge"])
         filters_layout.addWidget(self.loader_combobox)
+        filters_layout.addStretch()
         
         top_layout.addWidget(filters_widget)
         

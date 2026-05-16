@@ -10,7 +10,7 @@ from pathlib import Path
 
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QListWidget, QListWidgetItem, QLabel
 from PySide6.QtCore import QSize, Signal, Qt
-from PySide6.QtGui import QFont, QColor, QIcon
+from PySide6.QtGui import QFont, QColor, QIcon, QPixmap
 
 from core.mod_info import ModInfo
 import core.icon_loader as icon_loader
@@ -92,7 +92,7 @@ class ModListWidget(QWidget):
         item_layout = QHBoxLayout(item_widget)
         item_layout.setContentsMargins(5, 10, 5, 10)
 
-        # QLabel для названия мода
+        # Настройка названия мода
         full_name = mod_info.name or "Неизвестный архив"
         max_chars = 22
         if len(full_name) > max_chars:
@@ -108,7 +108,7 @@ class ModListWidget(QWidget):
         name_label.setStyleSheet("color: #ceb2ec;")
         name_label.setToolTip(full_name)
             
-        # QLabel для тега источника данных
+        # Тег источника данных
         tag_label = QLabel(mod_info.data_source)
         tag_font = QFont()
         tag_font.setBold(True)
@@ -133,14 +133,24 @@ class ModListWidget(QWidget):
         return item_widget
 
     def _pick_icon(self, mod_info: ModInfo) -> QIcon:
-        """Выбирает иконку для элемента списка модов."""
+        """Выбирает и масштабирует иконку для элемента списка модов."""
         default_icon_path = Path(__file__).resolve().parents[2] / "resources" / "icons" / "default_mod_icon.png"
-            
+        
+        pixmap = QPixmap()
+
         if mod_info.source_path and mod_info.icon_path:
             pixmap = icon_loader.load_icon_from_archive(mod_info.source_path, mod_info.icon_path)
-            if not pixmap.isNull():
-                return QIcon(pixmap)    
 
-        print(f"Мод '{mod_info.name}' не содержит иконки.")
-        return QIcon(str(default_icon_path))
+        if pixmap.isNull():
+            print(f"Не удалось загрузить иконку для '{mod_info.name}'. Загружаем стандартную.")
+            pixmap.load(str(default_icon_path))
+
+        # Масштабируем иконеу ровно до 40x40 пикселей
+        scaled_pixmap = pixmap.scaled(
+            40, 40,
+            Qt.AspectRatioMode.IgnoreAspectRatio,
+            Qt.TransformationMode.FastTransformation
+        )
+
+        return QIcon(scaled_pixmap)
         
