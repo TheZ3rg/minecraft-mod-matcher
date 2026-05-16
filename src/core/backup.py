@@ -8,7 +8,7 @@ import zipfile
 import logging
 from pathlib import Path
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Callable
 
 import core.file_scanner as file_scanner
 
@@ -21,7 +21,9 @@ class BackupError(Exception):
     pass
 
 
-def create_backup(source_folder: str, dest_folder: str) -> Optional[Path]:
+def create_backup(source_folder: str,
+                  dest_folder: str,
+                  progress_callback: Optional[Callable[[int, int], None]] = None) -> Path:
     """Создаёт ZIP-архив с модами (.jar и .zip) из source_folder в dest_folder.
 
     Args:
@@ -53,11 +55,16 @@ def create_backup(source_folder: str, dest_folder: str) -> Optional[Path]:
         
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     backup_path = dst / f"mods_backup_{timestamp}.zip"
+
+    total_files = len(mod_paths)
         
     try:
         with zipfile.ZipFile(backup_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-            for file in mod_paths:
+            for index, file in enumerate(mod_paths):
                 zipf.write(file, file.name)
+
+                if progress_callback:
+                    progress_callback(index + 1, total_files)
             
         logger.info(f"Резервная копия успешно создана: {backup_path}")
         return backup_path

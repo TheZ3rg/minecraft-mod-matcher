@@ -88,6 +88,7 @@ class MainWindow(QMainWindow):
         self.folders_selector = FolderSelectorWidget()
         top_layout.addWidget(self.folders_selector)
 
+        # Виджет для отображения сообщений состояния и прогресса выполнения задач
         self.status_widget = StatusWidget()
         top_layout.addWidget(self.status_widget)
 
@@ -143,6 +144,7 @@ class MainWindow(QMainWindow):
         """
         self.backup_thread = CreatingBackupThread(source_folder, dest_folder)
 
+        self.backup_thread.progress_updated.connect(self.status_widget.update_progress)
         self.backup_thread.backup_finished.connect(self._on_backup_finished)
         self.backup_thread.backup_error.connect(self._on_backup_error)
         
@@ -150,11 +152,11 @@ class MainWindow(QMainWindow):
 
     def _on_backup_finished(self, backup_path: str) -> None:
         """Вызывается, когда резервная копия успешно создана."""
-        QMessageBox.information(self, "Успешно", f"Резервная копия создана:\n{backup_path}")
+        self.status_widget.show_success(f"Резервная копия создана:\n{backup_path}")
 
     def _on_backup_error(self, error_message: str) -> None:
         """Вызывается, когда при создании резервной копии произошла ошибка."""
-        QMessageBox.warning(self, "Ошибка создания резервной копии", error_message)
+        self.status_widget.show_error(f"Ошибка создания резервной копии.\n{error_message}")
 
     def on_source_folder_changed(self, folder_path: str) -> None:
         """Обрабатывает выбор исходной папки, запуская фоновое сканирование директории."""
@@ -169,6 +171,8 @@ class MainWindow(QMainWindow):
 
         self.scanner_thread = ModScannerThread(folder_path)
 
+        self.status_widget.start_progress("Сканирование папки с модами...")
+
         self.scanner_thread.progress_updated.connect(self.status_widget.update_progress)        
         self.scanner_thread.scan_finished.connect(self._on_scan_finished)
         
@@ -177,12 +181,15 @@ class MainWindow(QMainWindow):
     def _on_scan_finished(self, mods_info_list: list) -> None:
         """Вызывается автоматически, когда фоновый поток заканчивает работу."""
         self.mod_list.update_mod_list(mods_info_list)
+        self.status_widget.show_success("Сканирование завершено")
         logger.info(f"Список модов обновлен. Найдено {len(mods_info_list)} модов.")
 
     def start_versions_loading(self) -> None:
         """Инициализирует и запускает фоновый поток загрузки версий."""
         self.version_thread = MinecraftVersionsLoaderThread(self.minecraft_versions)
         
+        self.status_widget.start_indeterminate_progress("Запрос к серверам Mojang...")
+
         self.version_thread.versions_loaded.connect(self._on_versions_ready)
         self.version_thread.error_occurred.connect(self._on_versions_error)
         
@@ -192,12 +199,14 @@ class MainWindow(QMainWindow):
         """Вызывается, когда список версий успешно загружен."""
         self.versions_combobox.clear()
         self.versions_combobox.addItems(versions)
+        self.status_widget.clear()
         logger.info(f"Список версий Minecraft успешно обновлен: {len(versions)} элементов.")
 
     def _on_versions_error(self) -> None:
         """Обработка ошибки загрузки версий."""
         self.versions_combobox.clear()
         self.versions_combobox.addItem("Ошибка")
+        self.status_widget.show_error("Не удалось загрузить список версий Minecraft:\nпроверьте интернет соединение и попробуйте еще раз")
 
     def on_mod_selected(self, mod_info: ModInfo) -> None:
         """Обрабатывает выбор мода в списке.
@@ -208,7 +217,7 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event) -> None:
         """Событие, которое срабатывает при закрытии главного окна.
-        
+
         Безопасно останавливает все запущенные фоновые потоки.
         """
         logger.debug("Закрытие приложения. Проверка активных потоков...")

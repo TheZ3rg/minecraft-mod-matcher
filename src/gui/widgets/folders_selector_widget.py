@@ -18,7 +18,7 @@ class FolderSelectorWidget(QWidget):
     """
     
     SOURCE_PLACEHOLDER = "Выберите директорию с модами..."
-    DESTINATION_PLACEHOLDER = "Выберите директорию для сохранения обновлений..."
+    DESTINATION_PLACEHOLDER = "Выберите директорию для сохранения модов..."
 
     source_folder_changed = Signal(str)
     destination_folder_changed = Signal(str)
@@ -69,16 +69,16 @@ class FolderSelectorWidget(QWidget):
         main_layout.setAlignment(self.backup_btn, Qt.AlignmentFlag.AlignRight)
     
     def select_source_folder(self):
-        """Выбор исходной папки с модами"""
-        folder = QFileDialog.getExistingDirectory(self, "Выберите папку с модами")
+        """Выбор исходной директории с модами"""
+        folder = QFileDialog.getExistingDirectory(self, self.SOURCE_PLACEHOLDER)
         if folder:
             self.source_path.setText(folder)
             self.source_folder_changed.emit(folder)
             self.update_backup_button_state()
     
     def select_dest_folder(self):
-        """Выбор папки сохранения"""
-        folder = QFileDialog.getExistingDirectory(self, "Выберите папку для сохранения обновлений")
+        """Выбор директории для сохранения"""
+        folder = QFileDialog.getExistingDirectory(self, self.DESTINATION_PLACEHOLDER)
         if folder:
             self.dest_path.setText(folder)
             self.destination_folder_changed.emit(folder)
