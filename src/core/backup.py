@@ -59,7 +59,7 @@ def create_backup(source_folder: str, dest_folder: str) -> Optional[Path]:
             for file in mod_paths:
                 zipf.write(file, file.name)
             
-        logger.info(f"Резервная копия создана: {backup_path}")
+        logger.info(f"Резервная копия успешно создана: {backup_path}")
         return backup_path
             
     except Exception as e:

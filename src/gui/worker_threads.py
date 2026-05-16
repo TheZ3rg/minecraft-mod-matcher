@@ -12,6 +12,7 @@ from typing import List
 import core.file_scanner as file_scanner
 import core.mod_parser as mod_parser
 from core.mod_info import ModInfo
+import core.backup as backup
 
 
 logger = logging.getLogger(__name__)
@@ -60,8 +61,8 @@ class MinecraftVersionsLoaderThread(QThread):
     """
     Фоновый поток для загрузки списка версий Minecraft с API Mojang.
     """
-    versions_loaded = Signal(list)
-    error_occurred = Signal()
+    versions_loaded = Signal(list) # Передает: список версий Minecraft
+    error_occurred = Signal(str)  # Передает: текст ошибки
 
     def __init__(self, api_instance):
         super().__init__()
@@ -74,7 +75,30 @@ class MinecraftVersionsLoaderThread(QThread):
             if self.api.load_versions():
                 self.versions_loaded.emit(self.api.release_versions)
             else:
-                self.error_occurred.emit()
+                self.error_occurred.emit("Не удалось загрузить версии Minecraft.")
         except Exception as e:
             logger.exception(f"Ошибка в потоке загрузки версий: {e}")
-            self.error_occurred.emit()
+            self.error_occurred.emit(str(e))
+
+
+class CreatingBackupThread(QThread):
+    """
+    Фоновый поток для создания резервной копии папки с модами.
+    """
+    backup_finished = Signal(str)  # Передает: путь к созданной резервной копии
+    backup_error = Signal(str)     # Передает: текст ошибки
+
+    def __init__(self, source_folder: str, backup_folder: str):
+        super().__init__()
+        self.source_folder = source_folder
+        self.backup_folder = backup_folder
+
+    def run(self):
+        """Создает резервную копию папки с модами."""
+        logger.info(f"Начало создания резервной копии из {self.source_folder} в {self.backup_folder}")
+        try:
+            backup_path = backup.create_backup(self.source_folder, self.backup_folder)
+            self.backup_finished.emit(str(backup_path))
+        except Exception as e:
+            logger.exception(f"Ошибка при создании резервной копии: {e}")
+            self.backup_error.emit(str(e))

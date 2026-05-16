@@ -13,13 +13,13 @@ from PySide6.QtGui import QIcon
 
 from pathlib import Path
 
-from .worker_threads import ModScannerThread, MinecraftVersionsLoaderThread
+from .worker_threads import (ModScannerThread, MinecraftVersionsLoaderThread, 
+                             CreatingBackupThread)
 from .widgets.mod_list_widget import ModListWidget
 from .widgets.source_mod_widget import SourceModWidget
 from .widgets.target_version_widget import TargetVersionWidget
 from .widgets.folders_selector_widget import FolderSelectorWidget
 
-import core.backup as backup
 from core.mod_info import ModInfo
 
 from api.minecraft_versions import MinecraftVersions
@@ -133,19 +133,24 @@ class MainWindow(QMainWindow):
     def on_backup_requested(self, source_folder: str, dest_folder: str) -> None:
         """Обрабатывает запрос на резервное копирование от виджета выбора папок.
 
-        Вызывает create_backup() для создания бэкапа модов
-        из source_folder в dest_folder.
-
         Args:
             source_folder: Путь к исходной папке с модами для резервного копирования
             dest_folder: Путь к папке назначения для резервной копии
         """
-        try:
-            backup_path = backup.create_backup(source_folder, dest_folder)
-            QMessageBox.information(self, "Успешно", f"Резервная копия создана:\n{backup_path}")
-            
-        except backup.BackupError as e:
-            QMessageBox.warning(self, "Ошибка создания резервной копии", str(e))
+        self.backup_thread = CreatingBackupThread(source_folder, dest_folder)
+
+        self.backup_thread.backup_finished.connect(self._on_backup_finished)
+        self.backup_thread.backup_error.connect(self._on_backup_error)
+        
+        self.backup_thread.start()
+
+    def _on_backup_finished(self, backup_path: str) -> None:
+        """Вызывается, когда резервная копия успешно создана."""
+        QMessageBox.information(self, "Успешно", f"Резервная копия создана:\n{backup_path}")
+
+    def _on_backup_error(self, error_message: str) -> None:
+        """Вызывается, когда при создании резервной копии произошла ошибка."""
+        QMessageBox.warning(self, "Ошибка создания резервной копии", error_message)
 
     def on_source_folder_changed(self, folder_path: str) -> None:
         """Обрабатывает выбор исходной папки, запуская фоновое сканирование директории."""
@@ -167,6 +172,7 @@ class MainWindow(QMainWindow):
     def _on_scan_finished(self, mods_info_list: list) -> None:
         """Вызывается автоматически, когда фоновый поток заканчивает работу."""
         self.mod_list.update_mod_list(mods_info_list)
+        logger.info(f"Список модов обновлен. Найдено {len(mods_info_list)} модов.")
 
     def start_versions_loading(self) -> None:
         """Инициализирует и запускает фоновый поток загрузки версий."""

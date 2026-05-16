@@ -48,9 +48,6 @@ class MinecraftVersions:
 
         Returns:
             bool: True если загрузка прошла успешно, False в случае ошибки
-
-        Raises:
-            При возникновении ошибок выводит сообщения в консоль
         """
         try:
             response = requests.get(self.MANIFEST_URL, timeout=10)
