@@ -15,10 +15,12 @@ from pathlib import Path
 
 from .worker_threads import (ModScannerThread, MinecraftVersionsLoaderThread, 
                              CreatingBackupThread)
+from .widgets.status_widget import StatusWidget
 from .widgets.mod_list_widget import ModListWidget
 from .widgets.source_mod_widget import SourceModWidget
 from .widgets.target_version_widget import TargetVersionWidget
 from .widgets.folders_selector_widget import FolderSelectorWidget
+
 
 from core.mod_info import ModInfo
 
@@ -78,7 +80,7 @@ class MainWindow(QMainWindow):
         right_panel_layout = QVBoxLayout(right_panel)
         right_panel_layout.setContentsMargins(0, 0, 0, 0)
         
-        # Выбор папок и кнопка создания резервной копии
+        # Секция выбора папок и отображения полезной информации
         top_section = QWidget()
         top_layout = QVBoxLayout(top_section)
         top_layout.setContentsMargins(0, 0, 0, 0)
@@ -86,10 +88,18 @@ class MainWindow(QMainWindow):
         self.folders_selector = FolderSelectorWidget()
         top_layout.addWidget(self.folders_selector)
 
-        # Фильтры для выбора версии Minecraft и загрузчика
+        self.status_widget = StatusWidget()
+        top_layout.addWidget(self.status_widget)
+
+        right_panel_layout.addWidget(top_section)
+
+        # Информация о текущей версии мода
+        self.source_mod_info = SourceModWidget()
+        right_panel_layout.addWidget(self.source_mod_info, 1)
+
+        # Комбинированные списки для выбора версии Minecraft и загрузчика
         filters_widget = QWidget()
         filters_layout = QHBoxLayout(filters_widget)
-        filters_layout.setContentsMargins(20, 0, 20, 0)
         
         filters_layout.addStretch()
         filters_layout.addWidget(QLabel("Версия:"))
@@ -104,17 +114,11 @@ class MainWindow(QMainWindow):
         filters_layout.addWidget(self.loader_combobox)
         filters_layout.addStretch()
         
-        top_layout.addWidget(filters_widget)
-        
-        right_panel_layout.addWidget(top_section)
-        
-        # Информация о текущей версии мода
-        self.source_mod_info = SourceModWidget()
-        right_panel_layout.addWidget(self.source_mod_info)
+        right_panel_layout.addWidget(filters_widget)
         
         # Информация о найденной версии
         self.target_version_info = TargetVersionWidget()
-        right_panel_layout.addWidget(self.target_version_info)
+        right_panel_layout.addWidget(self.target_version_info, 1)
 
         splitter.addWidget(right_panel)
 
@@ -164,7 +168,8 @@ class MainWindow(QMainWindow):
         self.source_mod_info.update_info(None)
 
         self.scanner_thread = ModScannerThread(folder_path)
-        
+
+        self.scanner_thread.progress_updated.connect(self.status_widget.update_progress)        
         self.scanner_thread.scan_finished.connect(self._on_scan_finished)
         
         self.scanner_thread.start()
