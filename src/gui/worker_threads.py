@@ -99,6 +99,9 @@ class CreatingBackupThread(QThread):
         try:
             backup_path = backup.create_backup(self.source_folder, self.backup_folder)
             self.backup_finished.emit(str(backup_path))
+        except backup.BackupError as e:
+            logger.warning(f"Не удалось создать бэкап: {e}")
+            self.backup_error.emit(str(e))
         except Exception as e:
-            logger.exception(f"Ошибка при создании резервной копии: {e}")
+            logger.exception(f"Критическая ошибка при создании резервной копии: {e}")
             self.backup_error.emit(str(e))
