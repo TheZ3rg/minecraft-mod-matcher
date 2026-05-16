@@ -69,12 +69,14 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(splitter)
         
         self.mod_list = ModListWidget()
+        self.mod_list.setMinimumWidth(400)
         splitter.addWidget(self.mod_list)
         
         right_panel = QWidget()
         right_panel_layout = QVBoxLayout(right_panel)
         right_panel_layout.setContentsMargins(0, 0, 0, 0)
         
+        # Выбор папок и кнопка создания резервной копии
         top_section = QWidget()
         top_layout = QVBoxLayout(top_section)
         top_layout.setContentsMargins(0, 0, 0, 0)
@@ -82,6 +84,7 @@ class MainWindow(QMainWindow):
         self.folders_selector = FolderSelectorWidget()
         top_layout.addWidget(self.folders_selector)
 
+        # Фильтры для выбора версии Minecraft и загрузчика
         filters_widget = QWidget()
         filters_layout = QHBoxLayout(filters_widget)
         filters_layout.setContentsMargins(20, 0, 20, 0)

@@ -94,7 +94,7 @@ class ModListWidget(QWidget):
 
         # Настройка названия мода
         full_name = mod_info.name or "Неизвестный архив"
-        max_chars = 22
+        max_chars = 24
         if len(full_name) > max_chars:
             display_name = f"{full_name[:max_chars]}..."
         else:
