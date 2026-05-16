@@ -5,11 +5,20 @@
 """
 
 import zipfile
+import logging
 from pathlib import Path
 from datetime import datetime
 from typing import Optional
 
 import core.file_scanner as file_scanner
+
+
+logger = logging.getLogger(__name__)
+
+
+class BackupError(Exception):
+    """Исключение для ошибок при создании резервной копии."""
+    pass
 
 
 def create_backup(source_folder: str, dest_folder: str) -> Optional[Path]:
@@ -21,14 +30,17 @@ def create_backup(source_folder: str, dest_folder: str) -> Optional[Path]:
             
         Returns:
             Путь к созданному архиву или None, если произошла ошибка
+
+        Raises:
+            BackupError: Если папка не найдена, модов нет или произошла ошибка записи.
         """
 
     src = Path(source_folder)
     dst = Path(dest_folder)
 
     if not src.is_dir():
-        print(f"Ошибка: исходная папка не найдена: {src}")
-        return None
+        logger.error(f"Ошибка: исходная папка не найдена: {src}")
+        raise BackupError(f"Исходная папка с модами не найдена по пути:\n{src}")
         
     if not dst.is_dir():
         dst.mkdir(parents=True, exist_ok=True) # Создаёт папку назначения, если её нет
@@ -36,8 +48,8 @@ def create_backup(source_folder: str, dest_folder: str) -> Optional[Path]:
     mod_paths = file_scanner.get_mod_paths(source_folder)
         
     if not mod_paths:
-        print("Нет модов для резервного копирования")
-        return None
+        logger.warning(f"В директории {src} нет модов для резервного копирования")
+        raise BackupError("В выбранной папке не найдено файлов модов (.jar/.zip) для бэкапа.")
         
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     backup_path = dst / f"mods_backup_{timestamp}.zip"
@@ -47,9 +59,9 @@ def create_backup(source_folder: str, dest_folder: str) -> Optional[Path]:
             for file in mod_paths:
                 zipf.write(file, file.name)
             
-        print(f"Резервная копия создана: {backup_path}")
+        logger.info(f"Резервная копия создана: {backup_path}")
         return backup_path
             
     except Exception as e:
-        print(f"Ошибка при создании резервной копии: {e}")
-        return None
+        logger.exception(f"Ошибка записи ZIP-архива бэкапа: {e}")
+        raise BackupError(f"Не удалось записать архив на диск: {e}")

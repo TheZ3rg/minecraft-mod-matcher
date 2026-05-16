@@ -6,7 +6,11 @@
 """
 
 import requests
+import logging
 from typing import List, Dict
+
+
+logger = logging.getLogger(__name__)
 
 
 class MinecraftVersions:
@@ -60,17 +64,17 @@ class MinecraftVersions:
             return True
             
         except requests.exceptions.Timeout:
-            print("Ошибка: превышено время ожидания ответа от Mojang API")
+            logger.error("Ошибка: превышено время ожидания ответа от Mojang API")
         except requests.exceptions.ConnectionError:
-            print("Ошибка: не удалось подключиться к Mojang API. Проверьте интернет-соединение")
+            logger.error("Ошибка: не удалось подключиться к Mojang API. Проверьте интернет-соединение")
         except requests.exceptions.HTTPError as e:
-            print(f"Ошибка HTTP при запросе версий у Mojang API: {e}")
+            logger.error(f"Ошибка HTTP при запросе версий у Mojang API: {e}")
         except requests.exceptions.RequestException as e:
-            print(f"Сетевая ошибка requests при запросе версий: {e}")
+            logger.error(f"Сетевая ошибка requests при запросе версий: {e}")
         except KeyError as e:
-            print(f"Ошибка: неожиданная структура JSON от Mojang API. Отсутствует ключ {e}")
+            logger.error(f"Ошибка: неожиданная структура JSON от Mojang API. Отсутствует ключ {e}")
         except Exception as e:
-            print(f"Неожиданная ошибка при загрузке версий: {e}")
+            logger.error(f"Неожиданная ошибка при загрузке версий: {e}")
 
         return False
 

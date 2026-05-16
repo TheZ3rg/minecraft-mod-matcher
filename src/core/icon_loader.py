@@ -1,6 +1,11 @@
 import zipfile
+import logging
 from PySide6.QtGui import QPixmap
 from pathlib import Path, PurePosixPath
+
+
+logger = logging.getLogger(__name__)
+
 
 def load_icon_from_archive(archive_path: Path, icon_internal_path: PurePosixPath) -> QPixmap:
     """
@@ -18,6 +23,6 @@ def load_icon_from_archive(archive_path: Path, icon_internal_path: PurePosixPath
             
             pixmap.loadFromData(image_data)
     except Exception as e:
-        print(f"Не удалось загрузить иконку из {archive_path.name}: {e}")
+        logger.error(f"Не удалось загрузить иконку из {archive_path.name}: {e}")
         
     return pixmap

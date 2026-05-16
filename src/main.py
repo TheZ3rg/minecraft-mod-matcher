@@ -15,6 +15,8 @@ from pathlib import Path
 from gui.main_window import MainWindow
 
 
+logger = logging.getLogger(__name__)
+
 def setup_logging():
     """Настройка логирования.
     
@@ -50,7 +52,7 @@ if __name__ == "__main__":
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(appid)
     
     setup_logging()
-    logging.info("=== Запуск ModMatcher ===")
+    logger.info("=== Запуск ModMatcher ===")
 
     app = QApplication()
     window = MainWindow()
@@ -60,5 +62,5 @@ if __name__ == "__main__":
     window.show()
 
     exit_status = app.exec()
-    print(f"DEBUG: Завершение работы. Код возврата: {exit_status}")
+    logger.info(f"Завершение работы. Status: {exit_status}")
     sys.exit(exit_status)

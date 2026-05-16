@@ -5,7 +5,7 @@ MainWindow — основное окно приложения, которое у
 отображает список модов, информацию о них, а также предоставляет элементы управления
 для фильтрации и резервного копирования.
 """
-
+import logging
 from PySide6.QtWidgets import (QMainWindow, QMessageBox, QWidget, QHBoxLayout, 
                                QVBoxLayout, QSplitter, QComboBox, QLabel)
 from PySide6.QtCore import Qt
@@ -24,6 +24,9 @@ import core.file_scanner as file_scanner
 from core.mod_info import ModInfo
 
 from api.minecraft_versions import MinecraftVersions
+
+
+logger = logging.getLogger(__name__)
 
 
 class MainWindow(QMainWindow):
@@ -145,12 +148,12 @@ class MainWindow(QMainWindow):
             source_folder: Путь к исходной папке с модами для резервного копирования
             dest_folder: Путь к папке назначения для резервной копии
         """
-        backup_path = backup.create_backup(source_folder, dest_folder)
-    
-        if backup_path:
+        try:
+            backup_path = backup.create_backup(source_folder, dest_folder)
             QMessageBox.information(self, "Успешно", f"Резервная копия создана:\n{backup_path}")
-        else:
-            QMessageBox.warning(self, "Ошибка", "Не удалось создать резервную копию")
+            
+        except backup.BackupError as e:
+            QMessageBox.warning(self, "Ошибка создания резервной копии", str(e))
 
     def on_source_folder_changed(self, folder_path: str) -> None:
         """Обрабатывает изменение исходной папки с модами.
@@ -170,7 +173,7 @@ class MainWindow(QMainWindow):
                 info = mod_parser.parse_mod_file(str(file_path))
                 mods_info_list.append(info)
             except mod_parser.ModParseError as e:
-                print(f"Ошибка: {e}")
+                logger.error(f"Ошибка: {e}")
                 mods_info_list.append(ModInfo(name=file_path.stem, source_path=file_path))
 
         self.mod_list.update_mod_list(mods_info_list)
