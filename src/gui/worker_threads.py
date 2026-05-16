@@ -31,7 +31,7 @@ class ModScannerThread(QThread):
 
     def run(self):
         """Основная логика сканирования папки с модами."""
-        logger.info(f"Начато сканирование папки: {self.folder_path}")
+        logger.info(f"Начато сканирование директории: {self.folder_path}")
         
         try:
             mod_paths = file_scanner.get_mod_paths(self.folder_path)
@@ -52,7 +52,7 @@ class ModScannerThread(QThread):
             self.scan_finished.emit(mods_info_list)
 
         except Exception as e:
-            logger.exception(f"Критическая ошибка в потоке сканирования: {e}")
+            logger.exception(f"Ошибка в потоке сканирования директории: {e}")
             self.scan_error.emit(str(e))
 
 
@@ -61,7 +61,7 @@ class MinecraftVersionsLoaderThread(QThread):
     Фоновый поток для загрузки списка версий Minecraft с API Mojang.
     """
     versions_loaded = Signal(list)
-    error_occurred = Signal(str)
+    error_occurred = Signal()
 
     def __init__(self, api_instance):
         super().__init__()
@@ -74,7 +74,7 @@ class MinecraftVersionsLoaderThread(QThread):
             if self.api.load_versions():
                 self.versions_loaded.emit(self.api.release_versions)
             else:
-                self.error_occurred.emit("Не удалось получить данные от Mojang API.")
+                self.error_occurred.emit()
         except Exception as e:
-            logger.exception("Ошибка в потоке загрузки версий")
-            self.error_occurred.emit(str(e))
+            logger.exception(f"Ошибка в потоке загрузки версий: {e}")
+            self.error_occurred.emit()

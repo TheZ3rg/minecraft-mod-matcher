@@ -130,14 +130,6 @@ class MainWindow(QMainWindow):
         self.folders_selector.source_folder_changed.connect(self.on_source_folder_changed)
         self.mod_list.mod_selected.connect(self.on_mod_selected)
 
-    def load_minecraft_versions(self) -> None:
-        """Загружает версии Minecraft в комбобокс выбора версий.
-
-        Получает список версий Minecraft с использованием класса 
-        MinecraftVersions и заполняет versions_combobox этими версиями.
-        """
-        self.versions_combobox.addItems(self.minecraft_versions.release_versions)
-
     def on_backup_requested(self, source_folder: str, dest_folder: str) -> None:
         """Обрабатывает запрос на резервное копирование от виджета выбора папок.
 
@@ -170,8 +162,6 @@ class MainWindow(QMainWindow):
         
         self.scanner_thread.scan_finished.connect(self._on_scan_finished)
         
-        self.scanner_thread.scan_error.connect(lambda err: logger.error(f"Ошибка потока: {err}"))
-        
         self.scanner_thread.start()
 
     def _on_scan_finished(self, mods_info_list: list) -> None:
@@ -193,11 +183,10 @@ class MainWindow(QMainWindow):
         self.versions_combobox.addItems(versions)
         logger.info(f"Список версий Minecraft успешно обновлен: {len(versions)} элементов.")
 
-    def _on_versions_error(self, error_msg: str) -> None:
+    def _on_versions_error(self) -> None:
         """Обработка ошибки загрузки версий."""
         self.versions_combobox.clear()
-        self.versions_combobox.addItem("Ошибка загрузки")
-        logger.error(f"Не удалось загрузить версии: {error_msg}")
+        self.versions_combobox.addItem("Ошибка")
 
     def on_mod_selected(self, mod_info: ModInfo) -> None:
         """Обрабатывает выбор мода в списке.
