@@ -13,15 +13,13 @@ from PySide6.QtGui import QIcon
 
 from pathlib import Path
 
-from .workers import ModScannerThread
+from .worker_threads import ModScannerThread, MinecraftVersionsLoaderThread
 from .widgets.mod_list_widget import ModListWidget
 from .widgets.source_mod_widget import SourceModWidget
 from .widgets.target_version_widget import TargetVersionWidget
 from .widgets.folders_selector_widget import FolderSelectorWidget
 
 import core.backup as backup
-import core.mod_parser as mod_parser
-import core.file_scanner as file_scanner
 from core.mod_info import ModInfo
 
 from api.minecraft_versions import MinecraftVersions
@@ -125,7 +123,8 @@ class MainWindow(QMainWindow):
         splitter.setCollapsible(1, False)
 
         self.minecraft_versions = MinecraftVersions()
-        self.load_minecraft_versions()
+        self.versions_combobox.addItem("Загрузка...") 
+        self.start_versions_loading()
 
         self.folders_selector.backup_requested.connect(self.on_backup_requested)
         self.folders_selector.source_folder_changed.connect(self.on_source_folder_changed)
@@ -178,6 +177,27 @@ class MainWindow(QMainWindow):
     def _on_scan_finished(self, mods_info_list: list) -> None:
         """Вызывается автоматически, когда фоновый поток заканчивает работу."""
         self.mod_list.update_mod_list(mods_info_list)
+
+    def start_versions_loading(self) -> None:
+        """Инициализирует и запускает фоновый поток загрузки версий."""
+        self.version_thread = MinecraftVersionsLoaderThread(self.minecraft_versions)
+        
+        self.version_thread.versions_loaded.connect(self._on_versions_ready)
+        self.version_thread.error_occurred.connect(self._on_versions_error)
+        
+        self.version_thread.start()
+
+    def _on_versions_ready(self, versions: list) -> None:
+        """Вызывается, когда список версий успешно загружен."""
+        self.versions_combobox.clear()
+        self.versions_combobox.addItems(versions)
+        logger.info(f"Список версий Minecraft успешно обновлен: {len(versions)} элементов.")
+
+    def _on_versions_error(self, error_msg: str) -> None:
+        """Обработка ошибки загрузки версий."""
+        self.versions_combobox.clear()
+        self.versions_combobox.addItem("Ошибка загрузки")
+        logger.error(f"Не удалось загрузить версии: {error_msg}")
 
     def on_mod_selected(self, mod_info: ModInfo) -> None:
         """Обрабатывает выбор мода в списке.
