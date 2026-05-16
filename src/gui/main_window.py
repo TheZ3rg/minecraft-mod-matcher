@@ -205,3 +205,27 @@ class MainWindow(QMainWindow):
         Достает информацию из словаря и передает в виджет информации.
         """
         self.source_mod_info.update_info(mod_info)
+
+    def closeEvent(self, event) -> None:
+        """Событие, которое срабатывает при закрытии главного окна.
+        
+        Безопасно останавливает все запущенные фоновые потоки.
+        """
+        logger.debug("Закрытие приложения. Проверка активных потоков...")
+
+        if hasattr(self, 'scanner_thread') and self.scanner_thread.isRunning():
+            logger.debug("Остановка потока сканирования...")
+            self.scanner_thread.terminate()
+            self.scanner_thread.wait()
+
+        if hasattr(self, 'version_thread') and self.version_thread.isRunning():
+            logger.debug("Остановка потока загрузки версий...")
+            self.version_thread.terminate()
+            self.version_thread.wait()
+
+        if hasattr(self, 'backup_thread') and self.backup_thread.isRunning():
+            logger.debug("Остановка потока резервного копирования...")
+            self.backup_thread.terminate()
+            self.backup_thread.wait()
+
+        event.accept()

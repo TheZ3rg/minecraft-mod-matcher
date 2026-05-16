@@ -12,13 +12,11 @@ class StatusWidget(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(5, 5, 5, 5)
 
-        # Текстовая метка для сообщений
         self.status_label = QLabel("Готов к работе")
         self.status_label.setWordWrap(True)
         self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.status_label)
 
-        # Полоса прогресса (по умолчанию скрыта)
         self.progress_bar = QProgressBar()
         self.progress_bar.setTextVisible(True)
         self.progress_bar.setVisible(False)
@@ -44,7 +42,7 @@ class StatusWidget(QWidget):
 
     def start_progress(self, message: str):
         """Показывает сообщение и включает полосу загрузки."""
-        self.show_message(message, "#2196F3") # Синий цвет для процесса
+        self.show_message(message, "#2196F3")
         self.progress_bar.setValue(0)
         self.progress_bar.setVisible(True)
 
