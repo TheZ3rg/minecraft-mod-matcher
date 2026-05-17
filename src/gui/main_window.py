@@ -239,9 +239,10 @@ class MainWindow(QMainWindow):
     def on_mod_selected(self, mod_info: ModInfo) -> None:
         """Обрабатывает выбор мода в списке.
         
-        Достает информацию из словаря и передает в виджет информации.
+        Достает информацию из словаря и передает в виджеты информации.
         """
         self.source_mod_info.update_info(mod_info)
+        self.target_version_info.update_info(mod_info)
 
     def on_update_btn_clicked(self):
         """Обрабатывает клик по кнопке обновления всех модов."""
@@ -289,7 +290,27 @@ class MainWindow(QMainWindow):
             self.update_btn.setEnabled(True)
             self.update_btn.setText("Проверить наличие версий")
             return
-            
+        
+        all_mods = self.mod_list.get_all_mods()
+        for mod in all_mods:
+            if mod.file_hash and mod.file_hash in updates_data:
+                new_version_info = updates_data[mod.file_hash]
+                
+                # Записываем версию и патчноут
+                mod.update_version = new_version_info.get("version_number")
+                mod.update_changelog = new_version_info.get("changelog")
+                
+                # API возвращает список файлов для этой версии. Ищем главный (.jar)
+                files = new_version_info.get("files", [])
+                if files:
+                    # Пытаемся найти файл с пометкой primary, иначе берем первый попавшийся
+                    primary_file = next((f for f in files if f.get("primary")), files[0])
+                    mod.update_filename = primary_file.get("filename")
+                    mod.update_download_url = primary_file.get("url")
+
+        # Перерисовываем список модов, чтобы применились новые стили
+        self.mod_list.update_mod_list(all_mods)
+
         self.status_widget.show_success(f"Найдено обновлений: {len(updates_data)}")
 
         # Обновляем кнопку
@@ -298,9 +319,6 @@ class MainWindow(QMainWindow):
             self.update_btn.setText("Загрузить выбранные")
         else:
             self.update_btn.setText("Загрузить все")
-            
-        # В СЛЕДУЮЩЕМ ШАГЕ мы добавим сюда код для записи результатов в ModInfo
-        # и раскрашивания элементов списка!
 
     def _on_updates_error(self, error_msg: str):
         self.status_widget.show_error(error_msg)
