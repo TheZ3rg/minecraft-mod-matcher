@@ -6,8 +6,8 @@ MainWindow — основное окно приложения, которое у
 для фильтрации и резервного копирования.
 """
 import logging
-from PySide6.QtWidgets import (QMainWindow, QMessageBox, QWidget, QHBoxLayout, 
-                               QVBoxLayout, QSplitter, QComboBox, QLabel)
+from PySide6.QtWidgets import (QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
+                               QSplitter, QComboBox, QLabel, QPushButton)
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QIcon
 
@@ -121,6 +121,19 @@ class MainWindow(QMainWindow):
         self.target_version_info = TargetVersionWidget()
         right_panel_layout.addWidget(self.target_version_info, 1)
 
+        # Кнопка для запуска проверки наличия версий
+        self.update_btn = QPushButton("Проверить наличие версий")
+        self.update_btn.setMinimumHeight(30)
+        font = self.update_btn.font()
+        font.setPointSize(10)
+        self.update_btn.setFont(font)
+        self.update_btn.setEnabled(False)
+        
+        # Подключаем сигнал клика к обработчику, который будет запускать проверку наличия версий
+        self.update_btn.clicked.connect(self.on_update_btn_clicked)
+
+        right_panel_layout.addWidget(self.update_btn)
+
         splitter.addWidget(right_panel)
 
         splitter.setSizes([450, 550])
@@ -131,8 +144,11 @@ class MainWindow(QMainWindow):
         self.versions_combobox.addItem("Загрузка...") 
         self.start_versions_loading()
 
+        # Запуск резервного копирования
         self.folders_selector.backup_requested.connect(self.on_backup_requested)
+        # Запуск сканирования директории с модами
         self.folders_selector.source_folder_changed.connect(self.on_source_folder_changed)
+        # Запуск обработки выбора мода в списке
         self.mod_list.mod_selected.connect(self.on_mod_selected)
 
     def on_backup_requested(self, source_folder: str, dest_folder: str) -> None:
@@ -159,7 +175,7 @@ class MainWindow(QMainWindow):
         self.status_widget.show_error(f"Ошибка создания резервной копии.\n{error_message}")
 
     def on_source_folder_changed(self, folder_path: str) -> None:
-        """Обрабатывает выбор исходной папки, запуская фоновое сканирование директории."""
+        """Обрабатывает выбор исходной папки, запуская сканирование директории в отдельном потоке."""
         if not folder_path:
             self.mod_list.show_placeholder()
             self.source_mod_info.update_info(None)
@@ -192,6 +208,10 @@ class MainWindow(QMainWindow):
         self.status_widget.show_success("Сканирование завершено")
         logger.info(f"Список модов обновлен. Найдено {len(mods_info_list)} модов.")
 
+        if mods_info_list:
+            self.update_btn.setEnabled(True)
+            self.update_btn.setText("Проверить наличие версий")
+
     def start_versions_loading(self) -> None:
         """Инициализирует и запускает фоновый поток загрузки версий."""
         self.version_thread = MinecraftVersionsLoaderThread(self.minecraft_versions)
@@ -222,6 +242,10 @@ class MainWindow(QMainWindow):
         Достает информацию из словаря и передает в виджет информации.
         """
         self.source_mod_info.update_info(mod_info)
+
+    def on_update_btn_clicked(self):
+        """Обрабатывает клик по кнопке обновления (Проверка или Загрузка)."""
+        pass
 
     def closeEvent(self, event) -> None:
         """Событие, которое срабатывает при закрытии главного окна.
