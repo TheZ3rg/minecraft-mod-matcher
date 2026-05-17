@@ -48,7 +48,7 @@ class StatusWidget(QWidget):
 
     def show_error(self, message: str):
         """Показывает сообщение об ошибке (red)."""
-        self.show_message(f"⚠️ {message}", "#EC554A")
+        self.show_message(message, "#EC554A")
 
     def show_info(self, message: str):
         """Показывает информационное сообщение (gray)."""
