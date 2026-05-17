@@ -27,6 +27,8 @@ class ModInfo:
 
         api_project_id: Уникальный ID проекта на Modrinth (например, 'P7dR8mSH').
         api_version_id: Уникальный ID конкретной версии файла на Modrinth.
+        api_icon_url: URL иконки, полученной из API.
+        api_icon_data: байты иконки из API.
 
         update_filename: Имя файла для сохранения новой версии на диск.
         update_version: Номер новой версии (например, '1.2.4').
@@ -52,12 +54,14 @@ class ModInfo:
     # --- Данные от API (Состояние текущего файла) ---
     api_project_id: Optional[str] = None
     api_version_id: Optional[str] = None
+    api_icon_url: Optional[str] = None
+    api_icon_data: Optional[bytes] = None
     
     # --- Данные об обновлении (Целевая версия для скачивания) ---
-    update_filename: Optional[str] = None     # Имя файла для сохранения на диск
-    update_version: Optional[str] = None      # Номер новой версии (например, '1.2.4')
-    update_changelog: Optional[str] = None    # Описание изменений (патчноут)
-    update_download_url: Optional[str] = None # Прямая ссылка на скачивание .jar файла
+    update_filename: Optional[str] = None
+    update_version: Optional[str] = None
+    update_changelog: Optional[str] = None
+    update_download_url: Optional[str] = None
     
     # Зависимости мода (список словарей с project_id и типом зависимости)
     update_dependencies: List[Dict[str, Any]] = field(default_factory=list) 

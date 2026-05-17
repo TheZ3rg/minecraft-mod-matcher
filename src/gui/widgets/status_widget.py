@@ -61,6 +61,7 @@ class StatusWidget(QWidget):
         """Показывает сообщение (blue) и включает полосу загрузки."""
         self.show_message(message, "#2196F3")
         self.progress_bar.setTextVisible(True)
+        self.progress_bar.setRange(0, 100) 
         self.progress_bar.setValue(0)
         self.progress_bar.setVisible(True)
 

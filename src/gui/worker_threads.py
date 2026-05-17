@@ -10,9 +10,14 @@ from PySide6.QtCore import QThread, Signal
 from typing import List
 
 import core.file_scanner as file_scanner
+import core.api_parser as api_parser
 import core.mod_parser as mod_parser
-from core.mod_info import ModInfo
 import core.backup as backup
+import core.hasher as hasher
+from core.mod_info import ModInfo
+
+
+from api.modrinth_client import ModrinthClient
 
 
 logger = logging.getLogger(__name__)
@@ -20,18 +25,27 @@ logger = logging.getLogger(__name__)
 
 class ModScannerThread(QThread):
     """
-    Фоновый поток для сканирования и парсинга папки с модами.
+    Фоновый поток для сканирования, парсинга и идентификации модов.
     """
     progress_updated = Signal(int, int)  # Передает: (текущий_файл, всего_файлов)
     scan_finished = Signal(list)         # Передает: готовый список из объектов ModInfo
     scan_error = Signal(str)             # Передает: текст ошибки
 
     def __init__(self, folder_path: str):
+        """
+        Инициализирует поток сканирования.
+
+        Args:
+            folder_path: Строковый путь к директории с модами.
+        """
         super().__init__()
         self.folder_path = folder_path
 
     def run(self):
-        """Основная логика сканирования папки с модами."""
+        """
+        Основной цикл выполнения потока.
+        Сначала ищет данные в API. Если мод не найден, запускает локальный парсер.
+        """
         logger.info(f"Начато сканирование директории: {self.folder_path}")
         
         try:
@@ -39,14 +53,29 @@ class ModScannerThread(QThread):
             total_mods = len(mod_paths)
             mods_info_list: List[ModInfo] = []
 
-            for index, file_path in enumerate(mod_paths):
-                try:
-                    info = mod_parser.parse_mod_file(str(file_path))
-                    mods_info_list.append(info)
-                except mod_parser.ModParseError as e:
-                    logger.warning(f"Не удалось распарсить {file_path.name}: {e}")
-                    mods_info_list.append(ModInfo(name=file_path.stem, source_path=file_path))
+            modrinth_client = ModrinthClient()
+
+            for index, mod_path in enumerate(mod_paths):
+                info = None
                 
+                mod_hash = hasher.get_file_hash(mod_path)
+                
+                # Пробуем получить данные через API по хэшу
+                if mod_hash:
+                    info = api_parser.parse_mod_via_api(mod_hash, mod_path, modrinth_client)
+
+                # Если данных через API получить не удалось, запускаем локальный парсер
+                if not info:
+                    logger.debug(f"Файл {mod_path.name} не найден в API. Пробуем распарсить локально.")
+                    try:
+                        info = mod_parser.parse_mod_file(str(mod_path))
+                    except mod_parser.ModParseError as e:
+                        logger.warning(f"Не удалось распарсить {mod_path.name}: {e}")
+                        info = ModInfo(name=mod_path.stem, source_path=mod_path, data_source="Unknown")
+
+                mods_info_list.append(info)
+
+                # Обновляем прогресс после обработки каждого файла
                 self.progress_updated.emit(index + 1, total_mods)
 
             logger.info("Сканирование успешно завершено.")
@@ -62,7 +91,7 @@ class MinecraftVersionsLoaderThread(QThread):
     Фоновый поток для загрузки списка версий Minecraft с API Mojang.
     """
     versions_loaded = Signal(list) # Передает: список версий Minecraft
-    error_occurred = Signal(str)  # Передает: текст ошибки
+    error_occurred = Signal(str)   # Передает: текст ошибки
 
     def __init__(self, api_instance):
         super().__init__()

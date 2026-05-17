@@ -15,14 +15,13 @@ from core.mod_info import ModInfo
 class SourceModWidget(QWidget):
     """Виджет для отображения информации о выбранном моде.
 
-    Показывает имя мода, описание, текущую версию и автора. Если мод не выбран,
+    Показывает имя мода, описание и текущую версию. Если мод не выбран,
     отображаются заполнители.
     """
     
     LABEL_PLACEHOLDER_TEXT = "Мод не выбран"
     DESCRIPTION_PLACEHOLDER_TEXT = "Выберите мод из списка слева"
     VERSIONS_PLACEHOLDER_TEXT = "—"
-    AUTHOR_PLACEHOLDER_TEXT = "—"
 
     def __init__(self, parent=None):
         """Инициализирует виджет и задаёт начальные заполнители для полей."""
@@ -58,14 +57,6 @@ class SourceModWidget(QWidget):
         versions_layout.addStretch()
         group_layout.addLayout(versions_layout)
 
-        author_layout = QHBoxLayout()
-        author_layout.addWidget(QLabel("Автор:"))
-        self.author = QLabel(self.AUTHOR_PLACEHOLDER_TEXT)
-        self.author.setWordWrap(True)
-        author_layout.addWidget(self.author)
-        author_layout.addStretch()
-        group_layout.addLayout(author_layout)
-
     def update_info(self, mod_info: ModInfo | None) -> None:
         """Обновляет текстовые поля виджета на основе данных о моде.
 
@@ -76,7 +67,6 @@ class SourceModWidget(QWidget):
             self.mod_name.setText(self.LABEL_PLACEHOLDER_TEXT)
             self.description.setText(self.DESCRIPTION_PLACEHOLDER_TEXT)
             self.versions.setText(self.VERSIONS_PLACEHOLDER_TEXT)
-            self.author.setText(self.AUTHOR_PLACEHOLDER_TEXT)
             return
 
         self.mod_name.setText(mod_info.name or "Неизвестный мод")
@@ -90,6 +80,3 @@ class SourceModWidget(QWidget):
         if mod_info.loader_type:
             version_text += f" [{mod_info.loader_type}]"
         self.versions.setText(version_text)
-
-        authors = mod_info.authors
-        self.author.setText(", ".join(authors) if authors else "Неизвестный автор")

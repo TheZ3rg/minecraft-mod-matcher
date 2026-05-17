@@ -142,7 +142,10 @@ class ModListWidget(QWidget):
         
         pixmap = QPixmap()
 
-        if mod_info.source_path and mod_info.icon_path:
+        if mod_info.api_icon_data:
+            pixmap.loadFromData(mod_info.api_icon_data)
+
+        if pixmap.isNull() and mod_info.source_path and mod_info.icon_path:
             pixmap = icon_loader.load_icon_from_archive(mod_info.source_path, mod_info.icon_path)
 
         if pixmap.isNull():
