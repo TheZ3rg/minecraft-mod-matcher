@@ -14,7 +14,7 @@ from PySide6.QtGui import QIcon
 from pathlib import Path
 
 from .worker_threads import (ModScannerThread, MinecraftVersionsLoaderThread, 
-                             CreatingBackupThread, CheckUpdatesThread)
+                             CreatingBackupThread, CheckUpdatesThread, DownloadModsThread)
 from .widgets.status_widget import StatusWidget
 from .widgets.mod_list_widget import ModListWidget
 from .widgets.source_mod_widget import SourceModWidget
@@ -119,6 +119,7 @@ class MainWindow(QMainWindow):
         
         # Информация о найденной версии
         self.target_version_info = TargetVersionWidget()
+        self.target_version_info.update_btn.clicked.connect(self.on_single_download_clicked)
         right_panel_layout.addWidget(self.target_version_info, 1)
 
         # Кнопка для запуска проверки наличия версий
@@ -278,8 +279,24 @@ class MainWindow(QMainWindow):
             self.updates_thread.start()
             
         elif current_text.startswith("Загрузить"):
-            # Здесь будет логика Этапа 4 (скачивание файлов)
-            pass
+            dest_folder = self.folders_selector.dest_path.text()
+            if not dest_folder:
+                self.status_widget.show_error("Пожалуйста, выберите папку для сохранения модов вверху окна!")
+                return
+                
+            # Берем выделенные моды. Если их нет - берем все.
+            mods_to_download = self.mod_list.get_selected_mods()
+            if not mods_to_download:
+                mods_to_download = self.mod_list.get_all_mods()
+                
+            # Оставляем только те, для которых есть обновление
+            mods_to_download = [m for m in mods_to_download if m.has_update]
+            
+            if not mods_to_download:
+                self.status_widget.show_info("Нет модов, требующих обновления.")
+                return
+                
+            self._start_download_process(mods_to_download, dest_folder)
 
     def _on_updates_found(self, updates_data: dict):
         """Обрабатывает результаты проверки обновлений."""
@@ -324,6 +341,49 @@ class MainWindow(QMainWindow):
         self.status_widget.show_error(error_msg)
         self.update_btn.setEnabled(True)
         self.mod_list.setEnabled(True)
+
+    def on_single_download_clicked(self):
+        """Обрабатывает клик по кнопке индивидуальной загрузки из нижней панели."""
+        dest_folder = self.folders_selector.dest_path.text()
+        if not dest_folder:
+            self.status_widget.show_error("Пожалуйста, выберите папку для сохранения модов!")
+            return
+            
+        # Берем только выделенные в списке моды
+        selected_mods = self.mod_list.get_selected_mods()
+        if not selected_mods or len(selected_mods) != 1:
+            self.status_widget.show_error("Пожалуйста, выделите один мод для загрузки.")
+            return
+            
+        mod = selected_mods[0]
+        if not mod.has_update:
+            return
+            
+        self._start_download_process([mod], dest_folder)
+
+    def _start_download_process(self, mods: list, dest_folder: str):
+        """Общий метод для запуска потока загрузки."""
+        self.status_widget.start_progress("Подготовка к загрузке...")
+        self.update_btn.setEnabled(False)
+        self.mod_list.setEnabled(False)
+        self.target_version_info.update_btn.setEnabled(False)
+        
+        self.download_thread = DownloadModsThread(mods, dest_folder)
+        self.download_thread.progress_updated.connect(self.status_widget.update_progress)
+        self.download_thread.status_text_updated.connect(self.status_widget.update_text)
+        self.download_thread.download_finished.connect(self._on_download_finished)
+        self.download_thread.download_error.connect(self._on_download_error)
+        self.download_thread.start()
+
+    def _on_download_finished(self, success_count: int):
+        self.mod_list.setEnabled(True)
+        self.update_btn.setEnabled(True)
+        self.status_widget.show_success(f"Загрузка завершена! Успешно скачано: {success_count}")
+
+    def _on_download_error(self, error_msg: str):
+        self.mod_list.setEnabled(True)
+        self.update_btn.setEnabled(True)
+        self.status_widget.show_error(error_msg)
 
     def closeEvent(self, event) -> None:
         """Событие, которое срабатывает при закрытии главного окна.

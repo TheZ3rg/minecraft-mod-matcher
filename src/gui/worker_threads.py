@@ -6,8 +6,10 @@
 """
 
 import logging
+import requests
 import concurrent.futures
 from typing import List
+from pathlib import Path
 from PySide6.QtCore import QThread, Signal
 
 import core.file_scanner as file_scanner
@@ -94,7 +96,7 @@ class ModScannerThread(QThread):
             urls_count = len(icon_urls)
             icon_cache = {} # {url: байты_картинки}
             
-            # Запускаем 10 рабочих потоков для одновременного скачивания
+            # Запускаем несколько рабочих потоков для одновременного скачивания
             with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
 
                 future_to_url = {executor.submit(modrinth_client.download_icon, url): url for url in icon_urls}
@@ -245,3 +247,79 @@ class CheckUpdatesThread(QThread):
         except Exception as e:
             logger.exception(f"Ошибка в потоке проверки обновлений: {e}")
             self.error_occurred.emit(str(e))
+
+
+class DownloadModsThread(QThread):
+    """
+    Фоновый поток для многопоточного скачивания новых версий модов.
+    """
+    progress_updated = Signal(int, int)
+    status_text_updated = Signal(str)
+    download_finished = Signal(int)
+    download_error = Signal(str)
+
+    def __init__(self, mods_to_download: List[ModInfo], dest_folder: str):
+        super().__init__()
+        self.mods = mods_to_download
+        self.dest_folder = Path(dest_folder)
+
+    def _download_single_mod(self, mod: ModInfo) -> bool:
+        """
+        Вспомогательный метод для скачивания одного мода.
+        Возвращает True в случае успеха, False при ошибке.
+        """
+        if not mod.update_download_url or not mod.update_filename:
+            return False
+            
+        try:
+            response = requests.get(mod.update_download_url, stream=True, timeout=20)
+            response.raise_for_status()
+
+            file_path = self.dest_folder / mod.update_filename
+            
+            # Записываем файл порциями, чтобы не загружать весь файл в память целиком
+            with open(file_path, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=2 * 1024 * 1024 * 8):
+                    f.write(chunk)
+            return True
+            
+        except Exception as e:
+            logger.error(f"Ошибка при загрузке {mod.update_filename}: {e}")
+            return False
+
+    def run(self):
+        logger.info(f"Начало многопоточной загрузки {len(self.mods)} модов в {self.dest_folder}")
+        try:
+            self.dest_folder.mkdir(parents=True, exist_ok=True)
+
+            success_count = 0
+            completed_tasks = 0
+            total_mods = len(self.mods)
+
+            # Запускаем несколько рабочих потоков для одновременного скачивания
+            with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+                future_to_mod = {
+                    executor.submit(self._download_single_mod, mod): mod 
+                    for mod in self.mods
+                }
+                
+                for future in concurrent.futures.as_completed(future_to_mod):
+                    mod = future_to_mod[future]
+                    try:
+                        is_success = future.result()
+                        if is_success:
+                            success_count += 1
+                        self.status_text_updated.emit(f"Загружено: {success_count}/{total_mods}")
+                    except Exception as exc:
+                        logger.warning(f"Сбой загрузки {mod.name}: {exc}")
+                        
+                    # Двигаем прогресс-бар после скачивания каждого мода
+                    completed_tasks += 1
+                    self.progress_updated.emit(completed_tasks, total_mods)
+
+            logger.info(f"Загрузка завершена. Успешно скачано: {success_count}/{total_mods}")
+            self.download_finished.emit(success_count)
+
+        except Exception as e:
+            logger.exception(f"Критическая ошибка в пуле скачивания: {e}")
+            self.download_error.emit(str(e))
