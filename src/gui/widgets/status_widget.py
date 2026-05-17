@@ -44,11 +44,11 @@ class StatusWidget(QWidget):
 
     def show_success(self, message: str):
         """Показывает сообщение об успехе (green)."""
-        self.show_message(message, "#4CAF50")
+        self.show_message(message, "#5DAF5F")
 
     def show_error(self, message: str):
         """Показывает сообщение об ошибке (red)."""
-        self.show_message(f"⚠️ {message}", "#F44336")
+        self.show_message(f"⚠️ {message}", "#EC554A")
 
     def show_info(self, message: str):
         """Показывает информационное сообщение (gray)."""
@@ -56,14 +56,14 @@ class StatusWidget(QWidget):
 
     def start_indeterminate_progress(self, message: str):
         """Показывает сообщение и включает бесконечный прогресс-бар."""
-        self.show_message(message, "#2196F3")
+        self.show_message(message, "#51ACF6")
         self.progress_bar.setTextVisible(False)
         self.progress_bar.setRange(0, 0) 
         self.progress_bar.setVisible(True)
 
     def start_progress(self, message: str):
         """Показывает сообщение (blue) и включает полосу загрузки."""
-        self.show_message(message, "#2196F3")
+        self.show_message(message, "#51ACF6")
         self.progress_bar.setTextVisible(True)
         self.progress_bar.setRange(0, 100) 
         self.progress_bar.setValue(0)
