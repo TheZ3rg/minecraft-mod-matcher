@@ -11,6 +11,13 @@ def load_icon_from_archive(archive_path: Path, icon_internal_path: PurePosixPath
     """
     Извлекает картинку из ZIP-архива и превращает её в QPixmap.
     Возвращает пустой QPixmap, если иконка не найдена или архив поврежден.
+
+    Args:
+        archive_path (Path): Путь к ZIP-архиву.
+        icon_internal_path (PurePosixPath): Внутренний путь к иконке внутри архива.
+
+    Returns:
+        QPixmap: Загруженная иконка или пустой QPixmap при ошибке.
     """
     pixmap = QPixmap()
     
