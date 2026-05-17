@@ -196,7 +196,7 @@ class ModrinthClient:
             logger.warning(f"Не удалось скачать иконку по ссылке {url}: {e}")
             return None
     
-    def check_updates(self, hashes: list[str], loader: str, game_version: str) -> Optional[list[Dict[str, Any]]]:
+    def check_updates(self, hashes: list[str], loader: str, game_version: str) -> Optional[Dict[str, Any]]:
         """Проверяет наличие обновлений для списка модов по фильтрам.
 
         Args:
@@ -205,10 +205,10 @@ class ModrinthClient:
             game_version: Версия игры (например, '1.20.1').
 
         Returns:
-            Список словарей с данными о новых версиях модов или None при ошибке.
+            Словарь с данными о новых версиях модов или None при ошибке.
         """
         if not hashes:
-            return []
+            return {}
 
         url = f"{self.BASE_URL}/version_files/update"
         
