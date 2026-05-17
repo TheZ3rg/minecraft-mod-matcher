@@ -38,6 +38,10 @@ class StatusWidget(QWidget):
         self.status_label.setText(message)
         self.progress_bar.setVisible(False)
 
+    def update_text(self, message: str):
+        """Обновляет только текст сообщения."""
+        self.status_label.setText(message)
+
     def show_success(self, message: str):
         """Показывает сообщение об успехе (green)."""
         self.show_message(message, "#4CAF50")
@@ -69,6 +73,8 @@ class StatusWidget(QWidget):
         """Обновляет значение полосы загрузки."""
         self.progress_bar.setRange(0, total)
         self.progress_bar.setValue(current)
+        if not self.progress_bar.isTextVisible():
+            self.progress_bar.setTextVisible(True)    
         if not self.progress_bar.isVisible():
             self.progress_bar.setVisible(True)
 

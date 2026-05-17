@@ -179,7 +179,9 @@ class MainWindow(QMainWindow):
 
         self.status_widget.start_progress("Сканирование папки с модами...")
 
-        self.scanner_thread.progress_updated.connect(self.status_widget.update_progress)        
+        self.scanner_thread.progress_updated.connect(self.status_widget.update_progress)
+        self.scanner_thread.status_text_updated.connect(self.status_widget.update_text)
+        self.scanner_thread.indeterminate_progress.connect(self.status_widget.start_indeterminate_progress)   
         self.scanner_thread.scan_finished.connect(self._on_scan_finished)
         
         self.scanner_thread.start()
@@ -194,7 +196,7 @@ class MainWindow(QMainWindow):
         """Инициализирует и запускает фоновый поток загрузки версий."""
         self.version_thread = MinecraftVersionsLoaderThread(self.minecraft_versions)
         
-        self.status_widget.start_indeterminate_progress("Запрос к серверам Mojang...")
+        self.status_widget.start_indeterminate_progress("Получение списка версий Minecraft...")
 
         self.version_thread.versions_loaded.connect(self._on_versions_ready)
         self.version_thread.error_occurred.connect(self._on_versions_error)

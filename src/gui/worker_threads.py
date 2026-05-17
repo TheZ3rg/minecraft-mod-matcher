@@ -6,8 +6,9 @@
 """
 
 import logging
-from PySide6.QtCore import QThread, Signal
+import concurrent.futures
 from typing import List
+from PySide6.QtCore import QThread, Signal
 
 import core.file_scanner as file_scanner
 import core.api_parser as api_parser
@@ -16,7 +17,6 @@ import core.backup as backup
 import core.hasher as hasher
 from core.mod_info import ModInfo
 
-
 from api.modrinth_client import ModrinthClient
 
 
@@ -24,58 +24,125 @@ logger = logging.getLogger(__name__)
 
 
 class ModScannerThread(QThread):
+    """Фоновый поток для получения информации о модах.
+    
+    Сканирует папку с модами, получает данные через API Modrinth
+    и в случае отсутствия информации в API парсит метаданные мода из архива.
     """
-    Фоновый поток для сканирования, парсинга и идентификации модов.
-    """
-    progress_updated = Signal(int, int)  # Передает: (текущий_файл, всего_файлов)
-    scan_finished = Signal(list)         # Передает: готовый список из объектов ModInfo
-    scan_error = Signal(str)             # Передает: текст ошибки
+    indeterminate_progress = Signal(str)
+    progress_updated = Signal(int, int)
+    status_text_updated = Signal(str)
+    scan_finished = Signal(list)
+    scan_error = Signal(str)
 
     def __init__(self, folder_path: str):
-        """
-        Инициализирует поток сканирования.
-
-        Args:
-            folder_path: Строковый путь к директории с модами.
-        """
         super().__init__()
         self.folder_path = folder_path
 
     def run(self):
-        """
-        Основной цикл выполнения потока.
-        Сначала ищет данные в API. Если мод не найден, запускает локальный парсер.
-        """
         logger.info(f"Начато сканирование директории: {self.folder_path}")
         
         try:
             mod_paths = file_scanner.get_mod_paths(self.folder_path)
             total_mods = len(mod_paths)
-            mods_info_list: List[ModInfo] = []
+            if total_mods == 0:
+                self.scan_finished.emit([])
+                return
 
             modrinth_client = ModrinthClient()
+            mods_info_list: List[ModInfo] = []
 
+            # 1. Хэширование файлов
+            self.status_text_updated.emit("Вычисление хэшей файлов...")
+            file_hashes = {}  # {путь_к_файлу: хэш}
+            
             for index, mod_path in enumerate(mod_paths):
-                info = None
-                
-                mod_hash = hasher.get_file_hash(mod_path)
-                
-                # Пробуем получить данные через API по хэшу
-                if mod_hash:
-                    info = api_parser.parse_mod_via_api(mod_hash, mod_path, modrinth_client)
+                file_hashes[mod_path] = hasher.get_file_hash(mod_path)
+                self.progress_updated.emit(index + 1, total_mods)
 
-                # Если данных через API получить не удалось, запускаем локальный парсер
-                if not info:
+            # 2. Сетевые запросы к API Modrinth
+            self.indeterminate_progress.emit("Запрос данных с серверов Modrinth...")
+            
+            # Собираем список непустых хэшей
+            valid_hashes = [h for h in file_hashes.values() if h]
+            
+            # Получаем все версии разом по хэшам.
+            # API Modrinth позволяет запрашивать сразу несколько хэшей.
+            versions_data = {}
+            if valid_hashes:
+                api_versions = modrinth_client.get_versions_by_hashes(valid_hashes)
+                if api_versions:
+                    versions_data = api_versions
+            
+            # Извлекаем все уникальные project_id из полученных версий
+            project_ids = list({v.get("project_id") for v in versions_data.values() if v.get("project_id")})
+            
+            # Получаем все проекты разом
+            projects_list = []
+            if project_ids:
+                api_projects = modrinth_client.get_projects_by_ids(project_ids)
+                if api_projects:
+                    projects_list = api_projects
+                    
+            projects_data = {p.get("id"): p for p in projects_list}
+
+            # 3. Многопоточная загрузка иконок
+            self.status_text_updated.emit("Загрузка иконок...")
+            
+            # Собираем все уникальные ссылки на иконки, чтобы не качать одно и то же дважды
+            icon_urls = {str(p.get("icon_url")) for p in projects_data.values() if p.get("icon_url")}
+            urls_count = len(icon_urls)
+            icon_cache = {} # {url: байты_картинки}
+            
+            # Запускаем 10 рабочих потоков для одновременного скачивания
+            with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+
+                future_to_url = {executor.submit(modrinth_client.download_icon, url): url for url in icon_urls}
+                
+                # По мере того, как картинки скачиваются, складываем их в кэш
+                for future in concurrent.futures.as_completed(future_to_url):
+                    url = future_to_url[future]
+                    try:
+                        data = future.result()
+                        if data:
+                            icon_cache[url] = data
+                    except Exception as exc:
+                        logger.warning(f"Ошибка параллельной загрузки иконки {url}: {exc}")
+                    
+                    self.progress_updated.emit(len(icon_cache), urls_count)
+
+            # 4. Сборка данных в объекты ModInfo
+            self.status_text_updated.emit("Сборка данных...")
+            
+            for index, mod_path in enumerate(mod_paths):
+                mod_info = None
+                mod_hash = file_hashes.get(mod_path)
+                
+                if mod_hash and mod_hash in versions_data:
+                    v_data = versions_data[mod_hash]
+                    p_data = projects_data.get(v_data.get("project_id"))
+                    
+                    if p_data:
+                        # Достаем готовую картинку из кэша
+                        icon_url = p_data.get("icon_url")
+                        icon_data = icon_cache.get(icon_url)
+                        
+                        # Собираем объект ModInfo из данных API
+                        mod_info = api_parser.parse_mod_from_batch(v_data, p_data, mod_path, icon_data)
+
+                # Локальный парсинг
+                # На случай, если мод не найден в API.
+                # Покрывает только самые популярные форматы загрузчиков (Fabric, Forge, Quilt)
+                # и может не сработать для редких/старых модов или модов с нестандартной структурой.
+                if not mod_info:
                     logger.debug(f"Файл {mod_path.name} не найден в API. Пробуем распарсить локально.")
                     try:
-                        info = mod_parser.parse_mod_file(str(mod_path))
+                        mod_info = mod_parser.parse_mod_file(str(mod_path))
                     except mod_parser.ModParseError as e:
                         logger.warning(f"Не удалось распарсить {mod_path.name}: {e}")
-                        info = ModInfo(name=mod_path.stem, source_path=mod_path, data_source="Unknown")
+                        mod_info = ModInfo(name=mod_path.stem, source_path=mod_path, data_source="Unknown")
 
-                mods_info_list.append(info)
-
-                # Обновляем прогресс после обработки каждого файла
+                mods_info_list.append(mod_info)
                 self.progress_updated.emit(index + 1, total_mods)
 
             logger.info("Сканирование успешно завершено.")
