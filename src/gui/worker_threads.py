@@ -158,9 +158,7 @@ class ModScannerThread(QThread):
 
 
 class MinecraftVersionsLoaderThread(QThread):
-    """
-    Фоновый поток для загрузки списка версий Minecraft с API Mojang.
-    """
+    """Фоновый поток для загрузки списка версий Minecraft с API Mojang"""
     versions_loaded = Signal(list) # Передает: список версий Minecraft
     error_occurred = Signal(str)   # Передает: текст ошибки
 
@@ -182,9 +180,7 @@ class MinecraftVersionsLoaderThread(QThread):
 
 
 class CreatingBackupThread(QThread):
-    """
-    Фоновый поток для создания резервной копии папки с модами.
-    """
+    """Фоновый поток для создания резервной копии папки с модами."""
     progress_updated = Signal(int, int)  # Передает: (текущий_файл, всего_файлов)
     backup_finished = Signal(str)        # Передает: путь к созданной резервной копии
     backup_error = Signal(str)           # Передает: текст ошибки
@@ -210,3 +206,42 @@ class CreatingBackupThread(QThread):
         except Exception as e:
             logger.exception(f"Критическая ошибка при создании резервной копии: {e}")
             self.backup_error.emit(str(e))
+
+
+class CheckUpdatesThread(QThread):
+    """Фоновый поток для проверки обновлений.
+
+    Отправляет хэши модов, версию игры и загрузчик на Modrinth,
+    и получает информацию о доступных обновлениях.
+    """
+    updates_found = Signal(dict) # {старый_хэш: словарь_с_новой_версией}
+    error_occurred = Signal(str)
+
+    def __init__(self, mods_to_check: List[ModInfo], game_version: str, loader: str):
+        super().__init__()
+        self.mods = mods_to_check
+        self.game_version = game_version
+        self.loader = loader
+
+    def run(self):
+        logger.info(f"Запуск проверки обновлений для {self.game_version} [{self.loader}]...")
+        try:
+            # Собираем только непустые хэши
+            hashes = [mod.file_hash for mod in self.mods if mod.file_hash]
+            
+            if not hashes:
+                self.updates_found.emit({})
+                return
+            
+            client = ModrinthClient()
+            # Запрашиваем обновления у API
+            updates_data = client.check_updates(hashes, self.loader, self.game_version)
+            
+            if updates_data is None:
+                self.error_occurred.emit("Не удалось получить ответ от серверов Modrinth при проверке обновлений.")
+            else:
+                self.updates_found.emit(updates_data)
+                
+        except Exception as e:
+            logger.exception(f"Ошибка в потоке проверки обновлений: {e}")
+            self.error_occurred.emit(str(e))

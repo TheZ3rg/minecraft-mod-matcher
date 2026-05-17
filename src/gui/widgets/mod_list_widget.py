@@ -190,4 +190,14 @@ class ModListWidget(QWidget):
                 selected_mods.append(mod_info)
                 
         return selected_mods
+    
+    def get_all_mods(self) -> list[ModInfo]:
+        """Возвращает список ModInfo для всех загруженных модов."""
+        all_mods = []
+        for i in range(self.mod_list.count()):
+            item = self.mod_list.item(i)
+            mod_info = item.data(Qt.ItemDataRole.UserRole)
+            if mod_info:
+                all_mods.append(mod_info)
+        return all_mods
         

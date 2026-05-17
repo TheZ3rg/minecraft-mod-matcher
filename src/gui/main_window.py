@@ -14,7 +14,7 @@ from PySide6.QtGui import QIcon
 from pathlib import Path
 
 from .worker_threads import (ModScannerThread, MinecraftVersionsLoaderThread, 
-                             CreatingBackupThread)
+                             CreatingBackupThread, CheckUpdatesThread)
 from .widgets.status_widget import StatusWidget
 from .widgets.mod_list_widget import ModListWidget
 from .widgets.source_mod_widget import SourceModWidget
@@ -244,8 +244,68 @@ class MainWindow(QMainWindow):
         self.source_mod_info.update_info(mod_info)
 
     def on_update_btn_clicked(self):
-        """Обрабатывает клик по кнопке обновления (Проверка или Загрузка)."""
-        pass
+        """Обрабатывает клик по кнопке обновления всех модов."""
+        current_text = self.update_btn.text()
+        
+        if current_text == "Проверить наличие версий":
+            # Читаем фильтры
+            game_version = self.versions_combobox.currentText()
+            loader = self.loader_combobox.currentText()
+            
+            if not game_version or game_version == "Загрузка...":
+                self.status_widget.show_error("Дождитесь загрузки списка версий Minecraft!")
+                return
+            elif game_version == "Ошибка":
+                self.status_widget.show_error("Невозможно проверить версии без списка версий Minecraft!")
+                return
+            
+            # Получаем моды для проверки
+            mods_to_check = self.mod_list.get_selected_mods()
+            if not mods_to_check:
+                # Если не выбрано ни одного мода, берем все
+                mods_to_check = self.mod_list.get_all_mods()
+            
+            # Обновляем UI
+            self.status_widget.start_indeterminate_progress("Сверяем версии с базой Modrinth...")
+            self.update_btn.setEnabled(False)
+            self.mod_list.setEnabled(False) # Блокируем список, чтобы не кликали во время проверки
+            
+            # Запускаем проверку обновлений в отдельном потоке
+            self.updates_thread = CheckUpdatesThread(mods_to_check, game_version, loader)
+            self.updates_thread.updates_found.connect(self._on_updates_found)
+            self.updates_thread.error_occurred.connect(self._on_updates_error)
+            self.updates_thread.start()
+            
+        elif current_text.startswith("Загрузить"):
+            # Здесь будет логика Этапа 4 (скачивание файлов)
+            pass
+
+    def _on_updates_found(self, updates_data: dict):
+        """Обрабатывает результаты проверки обновлений."""
+        self.mod_list.setEnabled(True)
+        
+        if not updates_data:
+            self.status_widget.show_info("Обновлений для выбранных параметров не найдено.")
+            self.update_btn.setEnabled(True)
+            self.update_btn.setText("Проверить наличие версий")
+            return
+            
+        self.status_widget.show_success(f"Найдено обновлений: {len(updates_data)}")
+
+        # Обновляем кнопку
+        self.update_btn.setEnabled(True)
+        if len(self.mod_list.get_selected_mods()) > 0:
+            self.update_btn.setText("Загрузить выбранные")
+        else:
+            self.update_btn.setText("Загрузить все")
+            
+        # В СЛЕДУЮЩЕМ ШАГЕ мы добавим сюда код для записи результатов в ModInfo
+        # и раскрашивания элементов списка!
+
+    def _on_updates_error(self, error_msg: str):
+        self.status_widget.show_error(error_msg)
+        self.update_btn.setEnabled(True)
+        self.mod_list.setEnabled(True)
 
     def closeEvent(self, event) -> None:
         """Событие, которое срабатывает при закрытии главного окна.
