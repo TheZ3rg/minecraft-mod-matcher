@@ -9,7 +9,8 @@ import logging
 
 from pathlib import Path
 
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QListWidget, QListWidgetItem, QLabel
+from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QListWidget, 
+                               QListWidgetItem, QLabel, QAbstractItemView)
 from PySide6.QtCore import QSize, Signal, Qt
 from PySide6.QtGui import QFont, QColor, QIcon, QPixmap
 
@@ -46,6 +47,8 @@ class ModListWidget(QWidget):
         layout.addWidget(title)
 
         self.mod_list = QListWidget()
+        # Включает возможность удобного множественного выбора
+        self.mod_list.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.mod_list.itemClicked.connect(self.on_item_clicked)
         layout.addWidget(self.mod_list)
 
@@ -81,6 +84,9 @@ class ModListWidget(QWidget):
             
             self.mod_list.addItem(item)
             self.mod_list.setItemWidget(item, item_widget)
+
+        # Выделяем все элементы списка после обновления
+        self.mod_list.selectAll()
     
     def on_item_clicked(self, item):
         """Обработка клика по элементу списка
@@ -121,10 +127,10 @@ class ModListWidget(QWidget):
 
         if mod_info.data_source == "API":
             # Зеленый фон для найденных в API
-            tag_label.setStyleSheet("background-color: #4CAF50; color: white; border-radius: 4px; padding: 2px 6px;")
+            tag_label.setStyleSheet("background-color: #62ae64; color: white; border-radius: 4px; padding: 2px 6px;")
         elif mod_info.data_source == "Local":
             # Оранжевый фон для распаршенных локально
-            tag_label.setStyleSheet("background-color: #ca8a2a; color: white; border-radius: 4px; padding: 2px 6px;")
+            tag_label.setStyleSheet("background-color: #c59142; color: white; border-radius: 4px; padding: 2px 6px;")
         else:
             # Серый фон для нераспознанных
             tag_label.setStyleSheet("background-color: #9E9E9E; color: white; border-radius: 4px; padding: 2px 6px;")
@@ -160,4 +166,14 @@ class ModListWidget(QWidget):
         )
 
         return QIcon(scaled_pixmap)
+    
+    def get_selected_mods(self) -> list[ModInfo]:
+        """Возвращает список ModInfo для всех выделенных (подсвеченных) элементов."""
+        selected_mods = []
+        for item in self.mod_list.selectedItems():
+            mod_info = item.data(Qt.ItemDataRole.UserRole)
+            if mod_info:
+                selected_mods.append(mod_info)
+                
+        return selected_mods
         
