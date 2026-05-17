@@ -121,8 +121,26 @@ class ModListWidget(QWidget):
         name_font.setPointSize(14)
         name_font.setBold(True)
         name_label.setFont(name_font)
-        name_label.setStyleSheet("color: #ceb2ec;")
         name_label.setToolTip(full_name)
+        
+        # Цвет текста, зависит от наличия обновления
+        if mod_info.has_update:
+            name_label.setStyleSheet("color: #8b76a0;") 
+        else:
+            name_label.setStyleSheet("color: #ceb2ec;")
+
+        item_layout.addWidget(name_label)
+        item_layout.addStretch() # Прижимаем тег к правому краю
+
+        # Тег наличия обновления
+        if mod_info.has_update:
+            update_tag = QLabel("⬆")
+            update_font = QFont()
+            update_font.setBold(True)
+            update_font.setPointSize(10)
+            update_tag.setFont(update_font)
+            update_tag.setStyleSheet("background-color: #349bef; color: white; border-radius: 4px; padding: 2px 6px;")
+            item_layout.addWidget(update_tag)
             
         # Тег источника данных
         tag_label = QLabel(mod_info.data_source)
@@ -141,9 +159,6 @@ class ModListWidget(QWidget):
             # Серый фон для нераспознанных
             tag_label.setStyleSheet("background-color: #9E9E9E; color: white; border-radius: 4px; padding: 2px 6px;")
             
-        # Собираем виджет
-        item_layout.addWidget(name_label)
-        item_layout.addStretch() # Прижимаем тег к правому краю
         item_layout.addWidget(tag_label)
             
         return item_widget
