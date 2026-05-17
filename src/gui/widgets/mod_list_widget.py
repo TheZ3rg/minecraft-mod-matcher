@@ -10,7 +10,7 @@ import logging
 from pathlib import Path
 
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QListWidget, 
-                               QListWidgetItem, QLabel, QAbstractItemView)
+                               QListWidgetItem, QLabel, QAbstractItemView, QPushButton)
 from PySide6.QtCore import QSize, Signal, Qt
 from PySide6.QtGui import QFont, QColor, QIcon, QPixmap
 
@@ -39,18 +39,35 @@ class ModListWidget(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
 
+        top_bar_layout = QHBoxLayout()
+        
         title = QLabel("Список модов")
         title_font = QFont()
         title_font.setBold(True)
         title_font.setPointSize(12)
         title.setFont(title_font)
-        layout.addWidget(title)
+        top_bar_layout.addWidget(title)
+
+        top_bar_layout.addStretch()
+
+        self.select_all_btn = QPushButton("Выделить всё")
+        self.select_all_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        top_bar_layout.addWidget(self.select_all_btn)
+
+        self.deselect_all_btn = QPushButton("Снять выделение")
+        self.deselect_all_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        top_bar_layout.addWidget(self.deselect_all_btn)
+
+        layout.addLayout(top_bar_layout)
 
         self.mod_list = QListWidget()
         # Включает возможность удобного множественного выбора
         self.mod_list.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.mod_list.itemClicked.connect(self.on_item_clicked)
         layout.addWidget(self.mod_list)
+
+        self.select_all_btn.clicked.connect(self.mod_list.selectAll)
+        self.deselect_all_btn.clicked.connect(self.mod_list.clearSelection)
 
         self.show_placeholder()
     
@@ -84,17 +101,6 @@ class ModListWidget(QWidget):
             
             self.mod_list.addItem(item)
             self.mod_list.setItemWidget(item, item_widget)
-
-        # Выделяем все элементы списка после обновления
-        self.mod_list.selectAll()
-    
-    def on_item_clicked(self, item):
-        """Обработка клика по элементу списка
-        
-        Извлекает ModInfo из кликнутого элемента и отправляет сигнал"""
-        mod_info = item.data(Qt.ItemDataRole.UserRole)
-        if mod_info:
-            self.mod_selected.emit(mod_info)
 
     def _create_item_widget(self, mod_info: ModInfo) -> QWidget:
         """Создает кастомный виджет для элемента списка модов."""
@@ -166,6 +172,14 @@ class ModListWidget(QWidget):
         )
 
         return QIcon(scaled_pixmap)
+    
+    def on_item_clicked(self, item):
+        """Обработка клика по элементу списка
+        
+        Извлекает ModInfo из кликнутого элемента и отправляет сигнал"""
+        mod_info = item.data(Qt.ItemDataRole.UserRole)
+        if mod_info:
+            self.mod_selected.emit(mod_info)
     
     def get_selected_mods(self) -> list[ModInfo]:
         """Возвращает список ModInfo для всех выделенных (подсвеченных) элементов."""
