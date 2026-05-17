@@ -128,7 +128,11 @@ class ModScannerThread(QThread):
                         icon_data = icon_cache.get(icon_url)
                         
                         # Собираем объект ModInfo из данных API
-                        mod_info = api_parser.parse_mod_from_batch(v_data, p_data, mod_path, icon_data)
+                        mod_info = api_parser.parse_mod_from_batch(v_data,
+                                                                   p_data,
+                                                                   mod_path,
+                                                                   icon_data,
+                                                                   mod_hash)
 
                 # Локальный парсинг
                 # На случай, если мод не найден в API.

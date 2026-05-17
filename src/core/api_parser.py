@@ -13,7 +13,8 @@ logger = logging.getLogger(__name__)
 def parse_mod_from_batch(version_info: Dict[str, Any], 
                          project_info: Dict[str, Any], 
                          mod_path: Path, 
-                         icon_data: Optional[bytes]) -> ModInfo:
+                         icon_data: Optional[bytes],
+                         mod_hash: str) -> ModInfo:
     """Собирает объект ModInfo из уже полученных словарей API.
 
     Args:
@@ -21,7 +22,7 @@ def parse_mod_from_batch(version_info: Dict[str, Any],
         project_info: Словарь с данными о проекте из API.
         mod_path: Путь к файлу мода на диске.
         icon_data: Байты иконки мода, если она была загружена.
-
+        mod_hash: Хэш файла мода.
     Returns:
         ModInfo: Объект с полной информацией о моде.
     """
@@ -50,5 +51,6 @@ def parse_mod_from_batch(version_info: Dict[str, Any],
         minecraft_version=mc_version_str,
         loader_type=loader_str,
         api_icon_url=icon_url,
-        api_icon_data=icon_data
+        api_icon_data=icon_data,
+        file_hash=mod_hash
     )
