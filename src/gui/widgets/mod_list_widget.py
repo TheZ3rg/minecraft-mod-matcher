@@ -24,8 +24,7 @@ logger = logging.getLogger(__name__)
 class ModListWidget(QWidget):
     """Виджет для работы со списком модов.
 
-    Обеспечивает отображение списка модов, заглушку при отсутствии файлов и
-    сигнал выбора элемента.
+    Обеспечивает отображение списка модов, создавая для каждого элемента (мода) отдельный виджет.
     """
     
     PLACEHOLDER_TEXT = "Выберите папку с модами"
@@ -67,8 +66,10 @@ class ModListWidget(QWidget):
         self.mod_list = QListWidget()
         # Включает возможность удобного множественного выбора
         self.mod_list.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
-        self.mod_list.itemClicked.connect(self.on_item_clicked)
+        self.mod_list.itemClicked.connect(self.on_item_selected)
 
+        # Перехватываем события мыши до того, как они попадут в QListWidget,
+        # чтобы самостоятельно управлять выделением элементов при кликах
         self.mod_list.viewport().installEventFilter(self)
 
         layout.addWidget(self.mod_list)
@@ -86,9 +87,24 @@ class ModListWidget(QWidget):
         # Отключаем возможность выбирать подсказку как элемент списка
         placeholder.setFlags(placeholder.flags() & ~Qt.ItemFlag.ItemIsSelectable)
         self.mod_list.addItem(placeholder)
+
+    def on_item_selected(self, item):
+        """Обработка клика по элементу списка.
+        
+        Извлекает ModInfo из кликнутого элемента и отправляет сигнал.
+        """
+        mod_info = item.data(Qt.ItemDataRole.UserRole)
+        if mod_info:
+            self.mod_selected.emit(mod_info)
     
     def update_mod_list(self, mods: list[ModInfo]):
-        """Принимает список объектов ModInfo и отображает их."""
+        """Принимает список объектов ModInfo и отображает их.
+        
+        Для каждого мода создается кастомный виджет с названием, тегами и добавляется иконка.
+
+        Args:
+            mods: Список объектов ModInfo, которые нужно отобразить в списке модов.
+        """
         # Сбрасываем память о выделенном элементе перед очисткой списка
         self.previewed_item = None
         
@@ -113,7 +129,13 @@ class ModListWidget(QWidget):
             self.mod_list.setItemWidget(item, item_widget)
 
     def _create_item_widget(self, mod_info: ModInfo) -> QWidget:
-        """Создает кастомный виджет для элемента списка модов."""
+        """Создает кастомный виджет для элемента списка модов.
+        
+        Args:
+            mod_info: Объект ModInfo, содержащий информацию о моде, которая будет отображаться в виджете.
+        Returns:
+            QWidget: Кастомный виджет для элемента списка модов, включающий название и теги.
+        """
         item_widget = QWidget()
         item_layout = QHBoxLayout(item_widget)
         item_layout.setContentsMargins(5, 10, 5, 10)
@@ -174,7 +196,16 @@ class ModListWidget(QWidget):
         return item_widget
 
     def _pick_icon(self, mod_info: ModInfo) -> QIcon:
-        """Выбирает и масштабирует иконку для элемента списка модов."""
+        """Выбирает и масштабирует иконку для элемента списка модов.
+        
+        Выбирает иконку по принципу API(из проекта) > Локальная(из архива) > Стандартная,
+        и масштабирует её для единообразия отображения в списке.
+
+        Args:
+            mod_info: Объект ModInfo, содержащий информацию о моде, включая данные для иконки.
+        Returns:
+            QIcon: Иконка для отображения в списке модов.
+        """
         default_icon_path = Path(__file__).resolve().parents[2] / "resources" / "icons" / "default_mod_icon.png"
         
         pixmap = QPixmap()
@@ -198,18 +229,11 @@ class ModListWidget(QWidget):
 
         return QIcon(scaled_pixmap)
     
-    def on_item_clicked(self, item):
-        """Обработка клика по элементу списка
-        
-        Извлекает ModInfo из кликнутого элемента и отправляет сигнал"""
-        mod_info = item.data(Qt.ItemDataRole.UserRole)
-        if mod_info:
-            self.mod_selected.emit(mod_info)
-    
     def get_selected_mods(self) -> list[ModInfo]:
         """Возвращает список ModInfo для всех выделенных (подсвеченных) элементов."""
         selected_mods = []
         for item in self.mod_list.selectedItems():
+            # UserRole используется для хранения ModInfo в каждом элементе списка
             mod_info = item.data(Qt.ItemDataRole.UserRole)
             if mod_info:
                 selected_mods.append(mod_info)
@@ -217,39 +241,43 @@ class ModListWidget(QWidget):
         return selected_mods
     
     def get_all_mods(self) -> list[ModInfo]:
-        """Возвращает список ModInfo для всех загруженных модов."""
+        """Возвращает список ModInfo для всех загруженных в список модов."""
         all_mods = []
         for i in range(self.mod_list.count()):
             item = self.mod_list.item(i)
+            # UserRole используется для хранения ModInfo в каждом элементе списка
             mod_info = item.data(Qt.ItemDataRole.UserRole)
             if mod_info:
                 all_mods.append(mod_info)
         return all_mods
     
     def eventFilter(self, source, event) -> bool:
-        """Перехватывает события мыши до того, как они попадут в QListWidget."""
+        """Перехватывает события мыши до того, как они попадут в QListWidget.
+        
+        В частности используется для управления выделением элементов при кликах,
+        чтобы при первом клике показывать информацию о моде, а при втором уже выделять сам элемент списка.
+        """
         if source is self.mod_list.viewport() and event.type() == QEvent.Type.MouseButtonPress:
             
-            # Перехватываем ТОЛЬКО левую кнопку мыши
+            # Перехватываем левую кнопку мыши
             if event.button() == Qt.MouseButton.LeftButton:
                 item = self.mod_list.itemAt(event.pos())
                 
                 if item:
-                    # Сценарий А: Это ПЕРВЫЙ клик по моду
+                    # Если это первый клик по моду
                     if self.previewed_item != item:
                         self.previewed_item = item
-                        self.on_item_clicked(item) # Показываем информацию справа
-                        return True # Съедаем клик: элемент НЕ выделяется в списке
+                        self.on_item_selected(item)
+                        return True # Не передаем клик Qt: элемент не выделяется в списке
                         
-                    # Сценарий Б: Это ВТОРОЙ клик по тому же самому моду
+                    # Если это второй клик по тому же самому моду
                     else:
                         self.previewed_item = None # Сбрасываем память
                         return False # Отдаем клик Qt: теперь он выделит элемент как обычно
                 else:
-                    # Если кликнули в пустоту списка
+                    # Если клик пришелся на пустое пространство списка
                     self.previewed_item = None
                     
-            # Для правой кнопки (и всех остальных) ничего не делаем, возвращаем False
-            
+        # При нажатии всех остальных кнопок ничего не делаем, возвращаем False
         return super().eventFilter(source, event)
         
