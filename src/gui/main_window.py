@@ -149,6 +149,7 @@ class MainWindow(QMainWindow):
         # Запуск обработки выбора мода в списке
         self.mod_list.mod_selected.connect(self.on_mod_selected)
 
+    # --- Методы обработки резервного копирования ---
     def on_backup_requested(self, source_folder: str, dest_folder: str) -> None:
         """Обрабатывает запрос на резервное копирование от виджета выбора папок.
 
@@ -172,6 +173,7 @@ class MainWindow(QMainWindow):
         """Вызывается, когда при создании резервной копии произошла ошибка."""
         self.status_widget.show_error(f"Ошибка создания резервной копии.\n{error_message}")
 
+    # --- Методы обработки сканирования директории с модами ---
     def on_source_folder_changed(self, folder_path: str) -> None:
         """Обрабатывает выбор исходной папки, запуская сканирование директории в отдельном потоке."""
         if not folder_path:
@@ -210,6 +212,7 @@ class MainWindow(QMainWindow):
             self.update_btn.setEnabled(True)
             self.update_btn.setText("Проверить наличие версий")
 
+    # --- Методы обработки загрузки фильтров (версий и загрузчиков) ---
     def start_filters_loading(self) -> None:
         """Инициализирует и запускает фоновый поток загрузки версий и загрузчиков."""
         self.filters_thread = FiltersLoaderThread()
@@ -269,16 +272,13 @@ class MainWindow(QMainWindow):
         
         self.status_widget.show_error(error_msg)
 
-    def on_mod_selected(self, mod_info: ModInfo) -> None:
-        """Обрабатывает выбор мода в списке.
-        
-        Достает информацию из словаря и передает в виджеты информации.
-        """
-        self.source_mod_info.update_info(mod_info)
-        self.target_version_info.update_info(mod_info)
-
+    # --- Методы обработки проверки обновлений и загрузки модов --- 
     def on_update_btn_clicked(self):
-        """Обрабатывает клик по кнопке обновления всех модов."""
+        """Обрабатывает клик по кнопке обновления всех модов.
+        
+        Выполняет проверку наличия обновлений для всех или только для выделенных модов в отдельном потоке,
+        а если обновления уже были найдены - запускает процесс загрузки.
+        """
         current_text = self.update_btn.text()
         
         if current_text == "Проверить наличие версий":
@@ -394,7 +394,7 @@ class MainWindow(QMainWindow):
         self._start_download_process([mod], dest_folder)
 
     def _start_download_process(self, mods: list, dest_folder: str):
-        """Общий метод для запуска потока загрузки."""
+        """Общий метод для запуска потока загрузки модов."""
         self.status_widget.start_progress("Подготовка к загрузке...")
         self.update_btn.setEnabled(False)
         self.mod_list.setEnabled(False)
@@ -408,14 +408,24 @@ class MainWindow(QMainWindow):
         self.download_thread.start()
 
     def _on_download_finished(self, success_count: int):
+        """Обработка успешного завершения загрузки модов."""
         self.mod_list.setEnabled(True)
         self.update_btn.setEnabled(True)
         self.status_widget.show_success(f"Загрузка завершена! Успешно скачано: {success_count}")
 
     def _on_download_error(self, error_msg: str):
+        """Обработка ошибки при загрузке модов."""
         self.mod_list.setEnabled(True)
         self.update_btn.setEnabled(True)
         self.status_widget.show_error(error_msg)
+
+    def on_mod_selected(self, mod_info: ModInfo) -> None:
+        """Обрабатывает выбор мода в списке.
+        
+        Достает информацию из словаря и передает в виджеты информации.
+        """
+        self.source_mod_info.update_info(mod_info)
+        self.target_version_info.update_info(mod_info)
 
     def closeEvent(self, event) -> None:
         """Событие, которое срабатывает при закрытии главного окна.
