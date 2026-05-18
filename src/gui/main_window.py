@@ -6,14 +6,14 @@ MainWindow — основное окно приложения, которое у
 для фильтрации и резервного копирования.
 """
 import logging
+from pathlib import Path
+
 from PySide6.QtWidgets import (QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
                                QSplitter, QComboBox, QLabel, QPushButton)
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QIcon
+from PySide6.QtGui import QIcon, QPixmap
 
-from pathlib import Path
-
-from .worker_threads import (ModScannerThread, MinecraftVersionsLoaderThread, 
+from .worker_threads import (ModScannerThread, FiltersLoaderThread, 
                              CreatingBackupThread, CheckUpdatesThread, DownloadModsThread)
 from .widgets.status_widget import StatusWidget
 from .widgets.mod_list_widget import ModListWidget
@@ -21,10 +21,7 @@ from .widgets.source_mod_widget import SourceModWidget
 from .widgets.target_version_widget import TargetVersionWidget
 from .widgets.folders_selector_widget import FolderSelectorWidget
 
-
 from core.mod_info import ModInfo
-
-from api.minecraft_versions import MinecraftVersions
 
 
 logger = logging.getLogger(__name__)
@@ -105,13 +102,15 @@ class MainWindow(QMainWindow):
         filters_layout.addStretch()
         filters_layout.addWidget(QLabel("Версия:"))
         self.versions_combobox = QComboBox()
+        self.versions_combobox.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
+        
         filters_layout.addWidget(self.versions_combobox)
         
         filters_layout.addStretch()
 
         filters_layout.addWidget(QLabel("Загрузчик:"))
         self.loader_combobox = QComboBox()
-        self.loader_combobox.addItems(["Forge", "Fabric", "Quilt", "NeoForge"])
+        self.loader_combobox.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
         filters_layout.addWidget(self.loader_combobox)
         filters_layout.addStretch()
         
@@ -141,9 +140,7 @@ class MainWindow(QMainWindow):
         splitter.setCollapsible(0, False)
         splitter.setCollapsible(1, False)
 
-        self.minecraft_versions = MinecraftVersions()
-        self.versions_combobox.addItem("Загрузка...") 
-        self.start_versions_loading()
+        self.start_filters_loading()
 
         # Запуск резервного копирования
         self.folders_selector.backup_requested.connect(self.on_backup_requested)
@@ -213,28 +210,63 @@ class MainWindow(QMainWindow):
             self.update_btn.setEnabled(True)
             self.update_btn.setText("Проверить наличие версий")
 
-    def start_versions_loading(self) -> None:
-        """Инициализирует и запускает фоновый поток загрузки версий."""
-        self.version_thread = MinecraftVersionsLoaderThread(self.minecraft_versions)
-        
-        self.status_widget.start_indeterminate_progress("Получение списка версий Minecraft...")
+    def start_filters_loading(self) -> None:
+        """Инициализирует и запускает фоновый поток загрузки версий и загрузчиков."""
+        self.filters_thread = FiltersLoaderThread()
 
-        self.version_thread.versions_loaded.connect(self._on_versions_ready)
-        self.version_thread.error_occurred.connect(self._on_versions_error)
+        self.versions_combobox.addItem("Загрузка...")
+        self.loader_combobox.addItem("Загрузка...")
         
-        self.version_thread.start()
+        self.status_widget.start_indeterminate_progress("Загрузка фильтров из базы Modrinth...")
 
-    def _on_versions_ready(self, versions: list) -> None:
-        """Вызывается, когда список версий успешно загружен."""
+        self.filters_thread.filters_loaded.connect(self._on_filters_ready)
+        self.filters_thread.error_occurred.connect(self._on_filters_error)
+        
+        self.filters_thread.start()
+
+    def _on_filters_ready(self, versions: list, loaders: list) -> None:
+        """Вызывается, когда списки успешно загружены."""
         self.versions_combobox.clear()
         self.versions_combobox.addItems(versions)
+        
+        self.loader_combobox.clear()
+        
+        for loader_data in loaders:
+            name = loader_data["name"]
+            svg_string = loader_data["icon"]
+            
+            # Цвета самых популярных загрузчиков для замены в SVG
+            brand_colors = {
+            "Fabric": "#DBB69B",
+            "Forge": "#959EEF",
+            "Neoforge": "#DF8F64",
+            "Quilt": "#C796F9"
+            }
+            
+            # Устанавливаем иконки
+            if svg_string:
+                # Ищем цвет в словаре. Если загрузчика там нет, используем стандартный белый
+                icon_color = brand_colors.get(name, "#ffffff")
+                svg_string = svg_string.replace('currentColor', icon_color)
+                # Превращаем строку SVG в байты и загружаем прямо в память как картинку
+                pixmap = QPixmap()
+                pixmap.loadFromData(svg_string.encode('utf-8'))
+                self.loader_combobox.addItem(QIcon(pixmap), name)
+            else:
+                # Если иконки нет, добавляем просто текст
+                self.loader_combobox.addItem(name)
+        
         self.status_widget.clear()
-        logger.info(f"Список версий Minecraft успешно обновлен: {len(versions)} элементов.")
+        logger.info(f"Загрузка фильтров завершена: {len(versions)} версий, {len(loaders)} загрузчиков.")
 
-    def _on_versions_error(self, error_msg: str) -> None:
-        """Обработка ошибки загрузки версий."""
+    def _on_filters_error(self, error_msg: str) -> None:
+        """Обработка ошибки загрузки фильтров."""
         self.versions_combobox.clear()
         self.versions_combobox.addItem("Ошибка")
+        
+        self.loader_combobox.clear()
+        self.loader_combobox.addItem("Ошибка")
+        
         self.status_widget.show_error(error_msg)
 
     def on_mod_selected(self, mod_info: ModInfo) -> None:
@@ -397,10 +429,10 @@ class MainWindow(QMainWindow):
             self.scanner_thread.terminate()
             self.scanner_thread.wait()
 
-        if hasattr(self, 'version_thread') and self.version_thread.isRunning():
-            logger.debug("Остановка потока загрузки версий...")
-            self.version_thread.terminate()
-            self.version_thread.wait()
+        if hasattr(self, 'filters_thread') and self.filters_thread.isRunning():
+            logger.debug("Остановка потока загрузки фильтров...")
+            self.filters_thread.terminate()
+            self.filters_thread.wait()
 
         if hasattr(self, 'backup_thread') and self.backup_thread.isRunning():
             logger.debug("Остановка потока резервного копирования...")

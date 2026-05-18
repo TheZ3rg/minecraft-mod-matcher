@@ -159,25 +159,34 @@ class ModScannerThread(QThread):
             self.scan_error.emit(str(e))
 
 
-class MinecraftVersionsLoaderThread(QThread):
-    """Фоновый поток для загрузки списка версий Minecraft с API Mojang"""
-    versions_loaded = Signal(list) # Передает: список версий Minecraft
-    error_occurred = Signal(str)   # Передает: текст ошибки
+class FiltersLoaderThread(QThread):
+    """
+    Фоновый поток для загрузки списка версий Minecraft и загрузчиков с API Modrinth.
+    """
+    filters_loaded = Signal(list, list) # (список_версий, список_загрузчиков)
+    error_occurred = Signal(str)
 
-    def __init__(self, api_instance):
+    def __init__(self):
         super().__init__()
-        self.api = api_instance
 
     def run(self):
-        """Запускает сетевой запрос в отдельном потоке."""
-        logger.info("Запуск фоновой загрузки версий Minecraft...")
+        logger.info("Запуск фоновой загрузки фильтров с Modrinth...")
         try:
-            if self.api.load_versions():
-                self.versions_loaded.emit(self.api.release_versions)
+            client = ModrinthClient()
+            
+            versions = client.get_game_versions()
+            loaders = client.get_loaders()
+            
+            if versions:
+                if loaders:
+                    self.filters_loaded.emit(versions, loaders)
+                else:
+                    self.error_occurred.emit("Не удалось загрузить список загрузчиков от Modrinth.")
             else:
-                self.error_occurred.emit("Не удалось загрузить версии Minecraft. Проверьте ваше интернет-соединение")
+                self.error_occurred.emit("Не удалось загрузить список версий от Modrinth.")
+                
         except Exception as e:
-            logger.exception(f"Ошибка в потоке загрузки версий: {e}")
+            logger.exception(f"Ошибка в потоке загрузки фильтров: {e}")
             self.error_occurred.emit(str(e))
 
 
@@ -309,7 +318,7 @@ class DownloadModsThread(QThread):
                         is_success = future.result()
                         if is_success:
                             success_count += 1
-                        self.status_text_updated.emit(f"Загружено: {success_count}/{total_mods}")
+                        self.status_text_updated.emit(f"Загружено: {success_count}/{total_mods} - {mod.name}")
                     except Exception as exc:
                         logger.warning(f"Сбой загрузки {mod.name}: {exc}")
                         

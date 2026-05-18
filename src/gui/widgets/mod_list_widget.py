@@ -11,7 +11,7 @@ from pathlib import Path
 
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QListWidget, 
                                QListWidgetItem, QLabel, QAbstractItemView, QPushButton)
-from PySide6.QtCore import QSize, Signal, Qt
+from PySide6.QtCore import QSize, Signal, Qt, QEvent
 from PySide6.QtGui import QFont, QColor, QIcon, QPixmap
 
 from core.mod_info import ModInfo
@@ -35,6 +35,10 @@ class ModListWidget(QWidget):
     def __init__(self, parent=None):
         """Инициализирует виджет списка модов и настраивает его макет."""
         super().__init__(parent)
+        
+        # Хранит текущий выделенный элемент для предотвращения 
+        # его автоматического выделения при клике правой кнопкой мыши
+        self.previewed_item = None
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -64,6 +68,9 @@ class ModListWidget(QWidget):
         # Включает возможность удобного множественного выбора
         self.mod_list.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.mod_list.itemClicked.connect(self.on_item_clicked)
+
+        self.mod_list.viewport().installEventFilter(self)
+
         layout.addWidget(self.mod_list)
 
         self.select_all_btn.clicked.connect(self.mod_list.selectAll)
@@ -82,6 +89,9 @@ class ModListWidget(QWidget):
     
     def update_mod_list(self, mods: list[ModInfo]):
         """Принимает список объектов ModInfo и отображает их."""
+        # Сбрасываем память о выделенном элементе перед очисткой списка
+        self.previewed_item = None
+        
         self.mod_list.clear()
         self.mod_list.setIconSize(QSize(40, 40))
         
@@ -215,4 +225,31 @@ class ModListWidget(QWidget):
             if mod_info:
                 all_mods.append(mod_info)
         return all_mods
+    
+    def eventFilter(self, source, event) -> bool:
+        """Перехватывает события мыши до того, как они попадут в QListWidget."""
+        if source is self.mod_list.viewport() and event.type() == QEvent.Type.MouseButtonPress:
+            
+            # Перехватываем ТОЛЬКО левую кнопку мыши
+            if event.button() == Qt.MouseButton.LeftButton:
+                item = self.mod_list.itemAt(event.pos())
+                
+                if item:
+                    # Сценарий А: Это ПЕРВЫЙ клик по моду
+                    if self.previewed_item != item:
+                        self.previewed_item = item
+                        self.on_item_clicked(item) # Показываем информацию справа
+                        return True # Съедаем клик: элемент НЕ выделяется в списке
+                        
+                    # Сценарий Б: Это ВТОРОЙ клик по тому же самому моду
+                    else:
+                        self.previewed_item = None # Сбрасываем память
+                        return False # Отдаем клик Qt: теперь он выделит элемент как обычно
+                else:
+                    # Если кликнули в пустоту списка
+                    self.previewed_item = None
+                    
+            # Для правой кнопки (и всех остальных) ничего не делаем, возвращаем False
+            
+        return super().eventFilter(source, event)
         

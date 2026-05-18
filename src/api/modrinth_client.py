@@ -228,3 +228,53 @@ class ModrinthClient:
         except requests.exceptions.RequestException as e:
             logger.error(f"Ошибка при проверке обновлений: {e}")
             return None
+
+    def get_game_versions(self) -> list[str]:
+        """Получает список актуальных версий Minecraft из базы Modrinth.
+
+        Возвращает только стабильные релизы (release).
+        """
+        url = f"{self.BASE_URL}/tag/game_version"
+        try:
+            response = self.session.get(url, timeout=10)
+            response.raise_for_status()
+            
+            data = response.json()
+            # Фильтруем: берем только 'release' и извлекаем строку версии
+            releases = [item.get("version") for item in data if item.get("version_type") == "release"]
+            return releases
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Ошибка при получении списка версий игры: {e}")
+            return []
+
+    def get_loaders(self) -> list[dict[str, str]]:
+        """Получает список поддерживаемых загрузчиков модов из базы Modrinth."""
+        url = f"{self.BASE_URL}/tag/loader"
+        try:
+            response = self.session.get(url, timeout=10)
+            response.raise_for_status()
+            
+            data = response.json()
+            # Фильтруем: загрузчик должен поддерживать тип проекта "mod"
+            loaders = []
+            for item in data:
+                name = item.get("name", "")
+                icon_svg = item.get("icon", "")
+                supported_types = item.get("supported_project_types", [])
+                # Исключаем загрузчики, которые поддерживают только плагины (например, для серверов), чтобы не путать пользователей
+                if "mod" in supported_types and "plugin" not in supported_types:
+                    loaders.append({"name": name.capitalize(), "icon": icon_svg})
+            
+            # Сортируем список. 
+            # priority.get(x, 99) выдаст приоритет (1-4), а если загрузчика нет в словаре - выдаст 99.
+            # Если приоритеты равны (у обоих 99), то сортируем их по второму значению (x) - по алфавиту.
+            priority = {"Fabric": 1, "Forge": 2, "Neoforge": 3, "Quilt": 4}
+
+            loaders.sort(key=lambda x: (priority.get(x["name"], 99), x["name"]))
+                        
+            return loaders
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Ошибка при получении списка загрузчиков: {e}")
+            return []
