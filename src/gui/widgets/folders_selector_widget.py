@@ -2,19 +2,18 @@
 Модуль виджета выбора папок.
 
 FolderSelectorWidget предоставляет интерфейс для выбора директории с модами
-и папки для сохранения обновлений, а также сигнал запроса на создание бэкапа.
+и папки для сохранения обновлений.
 """
 
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout,
                                 QLineEdit, QPushButton, QLabel, QFileDialog)
-from PySide6.QtCore import Signal, Qt
+from PySide6.QtCore import Signal
 
 
 class FolderSelectorWidget(QWidget):
-    """Виджет для выбора папок и управления запросом резервного копирования.
+    """Виджет для выбора директорий.
 
-    Содержит поля для исходной и целевой папки, кнопки открытия диалога выбора папки
-    и кнопку запуска создания бэкапа модов.
+    Содержит поля для исходной и целевой папки, кнопки открытия диалога выбора папки.
     """
     
     SOURCE_PLACEHOLDER = "Выберите директорию с модами..."
@@ -22,7 +21,6 @@ class FolderSelectorWidget(QWidget):
 
     source_folder_changed = Signal(str)
     destination_folder_changed = Signal(str)
-    backup_requested = Signal(str, str)
     
     def __init__(self, parent=None):
         """Инициализирует виджет выбора папок и настраивает элементы управления."""
@@ -61,12 +59,6 @@ class FolderSelectorWidget(QWidget):
         dest_layout.addWidget(self.dest_browse_btn)
         
         main_layout.addLayout(dest_layout)
-        
-        self.backup_btn = QPushButton("💾 Создать бэкап модов")
-        self.backup_btn.clicked.connect(self._on_backup_clicked)
-        self.backup_btn.setEnabled(False)
-        main_layout.addWidget(self.backup_btn)
-        main_layout.setAlignment(self.backup_btn, Qt.AlignmentFlag.AlignRight)
     
     def select_source_folder(self):
         """Выбор исходной директории с модами"""
@@ -74,26 +66,10 @@ class FolderSelectorWidget(QWidget):
         if folder:
             self.source_path.setText(folder)
             self.source_folder_changed.emit(folder)
-            self.update_backup_button_state()
-    
+ 
     def select_dest_folder(self):
         """Выбор директории для сохранения"""
         folder = QFileDialog.getExistingDirectory(self, self.DESTINATION_PLACEHOLDER)
         if folder:
             self.dest_path.setText(folder)
             self.destination_folder_changed.emit(folder)
-            self.update_backup_button_state()
-    
-    def update_backup_button_state(self):
-        """Обновляет состояние кнопки бэкапа"""
-        if self.source_path.text() and self.dest_path.text():
-            self.backup_btn.setEnabled(True)
-        else:
-            self.backup_btn.setEnabled(False)
-    
-    def _on_backup_clicked(self):
-        """Обработчик клика по кнопке бэкапа"""
-        self.backup_requested.emit(
-            self.source_path.text(),
-            self.dest_path.text()
-        )

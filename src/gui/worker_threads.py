@@ -192,6 +192,7 @@ class FiltersLoaderThread(QThread):
 
 class CreatingBackupThread(QThread):
     """Фоновый поток для создания резервной копии папки с модами."""
+    start_progress = Signal(str)    # Передает: текст статуса
     progress_updated = Signal(int, int)  # Передает: (текущий_файл, всего_файлов)
     backup_finished = Signal(str)        # Передает: путь к созданной резервной копии
     backup_error = Signal(str)           # Передает: текст ошибки
@@ -205,6 +206,7 @@ class CreatingBackupThread(QThread):
         """Создает резервную копию папки с модами."""
         logger.info(f"Начало создания резервной копии из {self.source_folder} в {self.backup_folder}")
         try:
+            self.start_progress.emit("Создание резервной копии...")
             backup_path = backup.create_backup(
                 self.source_folder,
                 self.backup_folder,

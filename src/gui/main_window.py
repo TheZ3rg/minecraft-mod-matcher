@@ -85,6 +85,30 @@ class MainWindow(QMainWindow):
         self.folders_selector = FolderSelectorWidget()
         top_layout.addWidget(self.folders_selector)
 
+        # Секция с кнопками настроек и создания бэкапа
+        actions_widget = QWidget()
+        actions_layout = QHBoxLayout(actions_widget)
+        actions_layout.setContentsMargins(0, 0, 0, 0)
+
+        # Кнопка настроек
+        self.settings_btn = QPushButton("⚙️ Настройки ")
+        self.settings_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.settings_btn.setStyleSheet("QPushButton { padding: 6px; } QPushButton:hover { color: #a0a0a0; }")
+        self.settings_btn.clicked.connect(self.open_settings)
+        actions_layout.addWidget(self.settings_btn)
+
+        actions_layout.addStretch()
+
+        # Кнопка создания бэкапа
+        self.backup_btn = QPushButton("💾 Создать бэкап модов")
+        self.backup_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.backup_btn.setEnabled(False) # Изначально выключена, пока директории не выбраны
+        self.backup_btn.setStyleSheet("QPushButton { padding: 6px; } QPushButton:hover { color: #a0a0a0; }")
+        self.backup_btn.clicked.connect(self.on_backup_btn_clicked)
+        actions_layout.addWidget(self.backup_btn)
+
+        top_layout.addWidget(actions_widget)
+
         # Виджет для отображения сообщений состояния и прогресса выполнения задач
         self.status_widget = StatusWidget()
         top_layout.addWidget(self.status_widget)
@@ -143,13 +167,31 @@ class MainWindow(QMainWindow):
         self.start_filters_loading()
 
         # Запуск резервного копирования
-        self.folders_selector.backup_requested.connect(self.on_backup_requested)
+        self.folders_selector.destination_folder_changed.connect(self.update_backup_button_state)
         # Запуск сканирования директории с модами
         self.folders_selector.source_folder_changed.connect(self.on_source_folder_changed)
         # Запуск обработки выбора мода в списке
         self.mod_list.mod_selected.connect(self.on_mod_selected)
 
+    def open_settings(self):
+        """Открывает диалоговое окно настроек."""
+        logger.info("Открытие окна настроек")
+        self.status_widget.show_info("Окно настроек скоро появится!")
+    
     # --- Методы обработки резервного копирования ---
+    def update_backup_button_state(self) -> None:
+        """Проверяет, выбраны ли обе папки, и управляет доступностью кнопки бэкапа."""
+        has_source = bool(self.folders_selector.source_path.text())
+        has_dest = bool(self.folders_selector.dest_path.text())
+        self.backup_btn.setEnabled(has_source and has_dest)
+
+    def on_backup_btn_clicked(self) -> None:
+        """Обработчик нажатия на кнопку бэкапа."""
+        source = self.folders_selector.source_path.text()
+        dest = self.folders_selector.dest_path.text()
+        if source and dest:
+            self.on_backup_requested(source, dest)
+
     def on_backup_requested(self, source_folder: str, dest_folder: str) -> None:
         """Обрабатывает запрос на резервное копирование от виджета выбора папок.
 
@@ -159,6 +201,7 @@ class MainWindow(QMainWindow):
         """
         self.backup_thread = CreatingBackupThread(source_folder, dest_folder)
 
+        self.backup_thread.start_progress.connect(self.status_widget.start_progress)
         self.backup_thread.progress_updated.connect(self.status_widget.update_progress)
         self.backup_thread.backup_finished.connect(self._on_backup_finished)
         self.backup_thread.backup_error.connect(self._on_backup_error)
@@ -201,6 +244,8 @@ class MainWindow(QMainWindow):
         self.scanner_thread.scan_finished.connect(self._on_scan_finished)
         
         self.scanner_thread.start()
+
+        self.update_backup_button_state()
 
     def _on_scan_finished(self, mods_info_list: list) -> None:
         """Вызывается автоматически, когда фоновый поток заканчивает работу."""

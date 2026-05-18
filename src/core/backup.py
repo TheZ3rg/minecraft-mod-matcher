@@ -28,14 +28,15 @@ def create_backup(source_folder: str,
 
     Args:
         source_folder: Путь к папке с модами
-            dest_folder: Путь к папке для сохранения бэкапа
+        dest_folder: Путь к папке для сохранения бэкапа
+        progress_callback: Необязательная функция для обновления прогресса (текущий, всего)
             
-        Returns:
-            Путь к созданному архиву или None, если произошла ошибка
+    Returns:
+        Путь к созданному архиву или None, если произошла ошибка
 
-        Raises:
-            BackupError: Если папка не найдена, модов нет или произошла ошибка записи.
-        """
+    Raises:
+        BackupError: Если папка не найдена, модов нет или произошла ошибка записи.
+    """
 
     src = Path(source_folder)
     dst = Path(dest_folder)
