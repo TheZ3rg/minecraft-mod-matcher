@@ -160,9 +160,7 @@ class ModScannerThread(QThread):
 
 
 class FiltersLoaderThread(QThread):
-    """
-    Фоновый поток для загрузки списка версий Minecraft и загрузчиков с API Modrinth.
-    """
+    """Фоновый поток для загрузки списка версий Minecraft и загрузчиков с API Modrinth."""
     filters_loaded = Signal(list, list) # (список_версий, список_загрузчиков)
     error_occurred = Signal(str)
 
@@ -170,7 +168,7 @@ class FiltersLoaderThread(QThread):
         super().__init__()
 
     def run(self):
-        logger.info("Запуск фоновой загрузки фильтров с Modrinth...")
+        logger.info("Запуск загрузки фильтров с Modrinth...")
         try:
             client = ModrinthClient()
             
@@ -181,8 +179,10 @@ class FiltersLoaderThread(QThread):
                 if loaders:
                     self.filters_loaded.emit(versions, loaders)
                 else:
+                    logger.warning("Не удалось загрузить список загрузчиков от Modrinth.")
                     self.error_occurred.emit("Не удалось загрузить список загрузчиков от Modrinth.")
             else:
+                logger.warning("Не удалось загрузить список версий от Modrinth.")
                 self.error_occurred.emit("Не удалось загрузить список версий от Modrinth.")
                 
         except Exception as e:
@@ -249,8 +249,10 @@ class CheckUpdatesThread(QThread):
             updates_data = client.check_updates(hashes, self.loader, self.game_version)
             
             if updates_data is None:
+                logger.warning("Не удалось получить ответ от серверов Modrinth при проверке обновлений.")
                 self.error_occurred.emit("Не удалось получить ответ от серверов Modrinth при проверке обновлений.")
             else:
+                logger.info(f"Проверка обновлений завершена. Найдено обновлений: {len(updates_data)}")
                 self.updates_found.emit(updates_data)
                 
         except Exception as e:
@@ -259,9 +261,7 @@ class CheckUpdatesThread(QThread):
 
 
 class DownloadModsThread(QThread):
-    """
-    Фоновый поток для многопоточного скачивания новых версий модов.
-    """
+    """Фоновый поток для многопоточного скачивания новых версий модов."""
     progress_updated = Signal(int, int)
     status_text_updated = Signal(str)
     download_finished = Signal(int)
@@ -273,9 +273,12 @@ class DownloadModsThread(QThread):
         self.dest_folder = Path(dest_folder)
 
     def _download_single_mod(self, mod: ModInfo) -> bool:
-        """
-        Вспомогательный метод для скачивания одного мода.
-        Возвращает True в случае успеха, False при ошибке.
+        """Вспомогательный метод для скачивания одного мода.
+
+        Args:
+            mod: Объект ModInfo, содержащий информацию о моде и ссылку на скачивание.
+        Returns:
+            Возвращает True в случае успеха, False при ошибке.
         """
         if not mod.update_download_url or not mod.update_filename:
             return False
@@ -290,6 +293,7 @@ class DownloadModsThread(QThread):
             with open(file_path, 'wb') as f:
                 for chunk in response.iter_content(chunk_size=2 * 1024 * 1024 * 8):
                     f.write(chunk)
+            logger.info(f"Скачивание завершено. Установлено: {mod.update_filename}")
             return True
             
         except Exception as e:
