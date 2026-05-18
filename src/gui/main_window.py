@@ -15,7 +15,9 @@ from PySide6.QtGui import QIcon, QPixmap
 
 from .worker_threads import (ModScannerThread, FiltersLoaderThread, 
                              CreatingBackupThread, CheckUpdatesThread, DownloadModsThread)
+
 from .widgets.status_widget import StatusWidget
+from .widgets.settings_dialog import SettingsDialog
 from .widgets.mod_list_widget import ModListWidget
 from .widgets.source_mod_widget import SourceModWidget
 from .widgets.target_version_widget import TargetVersionWidget
@@ -176,7 +178,9 @@ class MainWindow(QMainWindow):
     def open_settings(self):
         """Открывает диалоговое окно настроек."""
         logger.info("Открытие окна настроек")
-        self.status_widget.show_info("Окно настроек скоро появится!")
+        
+        dialog = SettingsDialog(self)
+        dialog.exec() # блокируем главное окно, пока не закроют настройки
     
     # --- Методы обработки резервного копирования ---
     def update_backup_button_state(self) -> None:
