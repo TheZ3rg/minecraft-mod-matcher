@@ -198,7 +198,7 @@ class MainWindow(QMainWindow):
             self.on_backup_requested(source, dest)
 
     def on_backup_requested(self, source_folder: str, dest_folder: str) -> None:
-        """Обрабатывает запрос на резервное копирование от виджета выбора папок.
+        """Инициализирует и запускает фоновый поток для создания резервной копии модов.
 
         Args:
             source_folder: Путь к исходной папке с модами для резервного копирования
@@ -381,7 +381,7 @@ class MainWindow(QMainWindow):
             self._start_download_process(mods_to_download, dest_folder)
 
     def _on_updates_found(self, updates_data: dict):
-        """"Обрабатывает результаты проверки обновлений."""
+        """Обрабатывает результаты проверки обновлений."""
         self.mod_list.setEnabled(True)
         
         if not updates_data:

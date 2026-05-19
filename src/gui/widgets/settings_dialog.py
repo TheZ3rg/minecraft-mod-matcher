@@ -19,7 +19,10 @@ logger = logging.getLogger(__name__)
 class SettingsDialog(QDialog):
     """Окно настроек приложения.
     
-    Использует QSettings для сохранения параметров в локальный файл config.ini.
+    Взаимодействует с параметрами через глобальный синглтон AppConfig из модуля core.config.
+    Содержит две вкладки:
+     - "Основные" для пользовательских опций
+     - "Отладка" для доступа к логам.
     """
     def __init__(self, parent=None):
         super().__init__(parent)

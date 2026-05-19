@@ -23,8 +23,6 @@ class TargetVersionWidget(QWidget):
     NAME_PLACEHOLDER_TEXT = "Выберите мод c доступным обновлением для просмотра"
     DEPS_PLACEHOLDER_TEXT = "Нет зависимостей"
     
-    update_requested = Signal(str)
-    
     def __init__(self, parent=None):
         """Инициализирует виджет и создает его визуальные компоненты.
 
@@ -69,7 +67,6 @@ class TargetVersionWidget(QWidget):
     def update_info(self, mod_info: ModInfo | None) -> None:
         """Обновляет поля виджета, если для мода найдено обновление."""
         
-        # Если мод не выбран или у него нет обновления — сбрасываем виджет
         if not mod_info or not mod_info.has_update:
             self.new_version_name.setText(self.NAME_PLACEHOLDER_TEXT)
             self.changelog.setText("")
@@ -81,15 +78,14 @@ class TargetVersionWidget(QWidget):
         self.new_version_name.setText(f"Доступна новая версия: {mod_info.update_version}")
         
         # Чейнджлог от Modrinth может быть огромным Markdown-текстом, 
-        # поэтому обрезаем для небольшогопревью
+        # поэтому обрезаем для небольшого превью
         changelog_text = mod_info.update_changelog or "Нет описания изменений."
         if len(changelog_text) > 150:
             changelog_text = changelog_text[:150] + "...\n(полный список изменений доступен на Modrinth)"
             
         self.changelog.setText(changelog_text)
         
-        # TODO: В будущем мы добавим сюда парсинг зависимостей
+        # TODO: В будущем добавить сюда парсинг зависимостей
         self.dependencies.setText("Будет добавлено позже...")
         
-        # Включаем индивидуальную кнопку загрузки
         self.update_btn.setEnabled(True)
