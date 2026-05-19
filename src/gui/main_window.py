@@ -24,6 +24,7 @@ from .widgets.target_version_widget import TargetVersionWidget
 from .widgets.folders_selector_widget import FolderSelectorWidget
 
 from core.mod_info import ModInfo
+from core.config import config
 
 
 logger = logging.getLogger(__name__)
@@ -380,7 +381,7 @@ class MainWindow(QMainWindow):
             self._start_download_process(mods_to_download, dest_folder)
 
     def _on_updates_found(self, updates_data: dict):
-        """Обрабатывает результаты проверки обновлений."""
+        """"Обрабатывает результаты проверки обновлений."""
         self.mod_list.setEnabled(True)
         
         if not updates_data:
@@ -388,6 +389,10 @@ class MainWindow(QMainWindow):
             self.update_btn.setEnabled(True)
             self.update_btn.setText("Проверить наличие версий")
             return
+        
+        # Собираем хэши всех выделенных модов до очистки списка
+        selected_mods = self.mod_list.get_selected_mods()
+        selected_hashes = {mod.file_hash for mod in selected_mods if mod.file_hash}
         
         all_mods = self.mod_list.get_all_mods()
         for mod in all_mods:
@@ -409,9 +414,16 @@ class MainWindow(QMainWindow):
         # Перерисовываем список модов, чтобы применились новые стили
         self.mod_list.update_mod_list(all_mods)
 
+        # Проходимся по новому списку и отмечаем нужные элементы
+        if selected_hashes:
+            for i in range(self.mod_list.mod_list.count()):
+                item = self.mod_list.mod_list.item(i)
+                mod_info = item.data(Qt.ItemDataRole.UserRole)
+                if mod_info and mod_info.file_hash in selected_hashes:
+                    item.setSelected(True)
+
         self.status_widget.show_success(f"Найдено обновлений: {len(updates_data)}")
 
-        # Обновляем кнопку
         self.update_btn.setEnabled(True)
         if len(self.mod_list.get_selected_mods()) > 0:
             self.update_btn.setText("Загрузить выбранные")
@@ -461,6 +473,10 @@ class MainWindow(QMainWindow):
         self.mod_list.setEnabled(True)
         self.update_btn.setEnabled(True)
         self.status_widget.show_success(f"Загрузка завершена! Успешно скачано: {success_count}")
+
+        if config.clear_selection_after_download:
+            self.mod_list.mod_list.clearSelection()
+            self.update_btn.setText("Загрузить все")
 
     def _on_download_error(self, error_msg: str):
         """Обработка ошибки при загрузке модов."""

@@ -7,8 +7,10 @@ from pathlib import Path
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout,
                                QPushButton, QLabel, QCheckBox, 
                                QTabWidget, QWidget)
-from PySide6.QtCore import Qt, QSettings, QUrl
+from PySide6.QtCore import Qt, QUrl
 from PySide6.QtGui import QDesktopServices
+
+from core.config import config
 
 
 logger = logging.getLogger(__name__)
@@ -22,23 +24,16 @@ class SettingsDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         
-        # Настраиваем параметры самого окна и QSettings
         self._setup_settings()
         
-        # Создаем и собираем все элементы UI
         self._init_ui()
         
-        # Загружаем сохраненные значения и выставляем их в виджеты
         self._load_saved_settings()
 
     def _setup_settings(self):
-        """Конфигурирует базовые свойства окна диалога и объект QSettings."""
+        """Конфигурирует базовые свойства окна диалога."""
         self.setWindowTitle("Настройки ModMatcher")
         self.setMinimumSize(450, 350)
-        
-        # Настройка INI-файла в корне проекта
-        config_path = Path(__file__).resolve().parents[3] / "config.ini"
-        self.settings = QSettings(str(config_path), QSettings.Format.IniFormat)
 
     def _init_ui(self):
         """Главный метод сборки интерфейса. Конструирует структуру макетов."""
@@ -105,8 +100,7 @@ class SettingsDialog(QDialog):
 
     def _load_saved_settings(self):
         """Загружает конфигурацию из файла и безопасно выставляет состояния виджетов."""
-        is_clear_enabled = bool(self.settings.value("clear_selection_after_download", False, type=bool))
-        self.clear_selection_cb.setChecked(is_clear_enabled)
+        self.clear_selection_cb.setChecked(config.clear_selection_after_download)
 
     def open_logs_folder(self):
         """Открывает директорию с логами в системном проводнике."""
@@ -120,6 +114,6 @@ class SettingsDialog(QDialog):
 
     def save_and_close(self):
         """Сохраняет измененные параметры на диск и закрывает диалог."""
-        self.settings.setValue("clear_selection_after_download", self.clear_selection_cb.isChecked())
+        config.clear_selection_after_download = self.clear_selection_cb.isChecked()
         logger.info("Настройки сохранены в config.ini.")
         self.accept() # Стандартный метод QDialog для успешного закрытия
