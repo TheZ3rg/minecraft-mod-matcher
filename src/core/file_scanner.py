@@ -3,9 +3,11 @@
 """
 
 import zipfile
+import logging
 from pathlib import Path
 from typing import List, Union
 
+logger = logging.getLogger(__name__)
 
 def get_mod_paths(folder_path: Union[str, Path]) -> List[Path]:
     """
@@ -18,7 +20,7 @@ def get_mod_paths(folder_path: Union[str, Path]) -> List[Path]:
         Отсортированный список объектов Path.
     """
     if folder_path is None:
-        print("Ошибка: Путь к директории не указан")
+        logger.error("Ошибка: Путь к директории не указан")
         return []
     
     folder_path = Path(folder_path)
@@ -29,10 +31,10 @@ def get_mod_paths(folder_path: Union[str, Path]) -> List[Path]:
             if file.is_file() and zipfile.is_zipfile(file)
         )
     except (FileNotFoundError, NotADirectoryError):
-        print(f"Директория {folder_path} не найдена")
+        logger.error(f"Директория {folder_path} не найдена")
     except PermissionError:
-        print(f"Нет доступа к {folder_path}")
+        logger.error(f"Нет доступа к {folder_path}")
     except OSError as e:
-        print(f"Ошибка чтения: {e}")
+        logger.error(f"Ошибка чтения: {e}")
 
     return []

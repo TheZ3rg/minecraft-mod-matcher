@@ -10,6 +10,8 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout,
 from PySide6.QtGui import QFont
 from PySide6.QtCore import Signal
 
+from core.mod_info import ModInfo
+
 
 class TargetVersionWidget(QWidget):
     """Виджет для отображения информации о найденной версии.
@@ -18,10 +20,8 @@ class TargetVersionWidget(QWidget):
     changelog, зависимости и кнопку загрузки обновления.
     """
 
-    NAME_PLACEHOLDER_TEXT = "Выберите мод для проверки"
+    NAME_PLACEHOLDER_TEXT = "Выберите мод c доступным обновлением для просмотра"
     DEPS_PLACEHOLDER_TEXT = "Нет зависимостей"
-    
-    update_requested = Signal(str)
     
     def __init__(self, parent=None):
         """Инициализирует виджет и создает его визуальные компоненты.
@@ -63,3 +63,29 @@ class TargetVersionWidget(QWidget):
         self.update_btn = QPushButton("Загрузить обновление")
         self.update_btn.setEnabled(False)
         group_layout.addWidget(self.update_btn)
+
+    def update_info(self, mod_info: ModInfo | None) -> None:
+        """Обновляет поля виджета, если для мода найдено обновление."""
+        
+        if not mod_info or not mod_info.has_update:
+            self.new_version_name.setText(self.NAME_PLACEHOLDER_TEXT)
+            self.changelog.setText("")
+            self.dependencies.setText(self.DEPS_PLACEHOLDER_TEXT)
+            self.update_btn.setEnabled(False)
+            return
+
+        # Заполняем данные
+        self.new_version_name.setText(f"Доступна новая версия: {mod_info.update_version}")
+        
+        # Чейнджлог от Modrinth может быть огромным Markdown-текстом, 
+        # поэтому обрезаем для небольшого превью
+        changelog_text = mod_info.update_changelog or "Нет описания изменений."
+        if len(changelog_text) > 150:
+            changelog_text = changelog_text[:150] + "...\n(полный список изменений доступен на Modrinth)"
+            
+        self.changelog.setText(changelog_text)
+        
+        # TODO: В будущем добавить сюда парсинг зависимостей
+        self.dependencies.setText("Будет добавлено позже...")
+        
+        self.update_btn.setEnabled(True)

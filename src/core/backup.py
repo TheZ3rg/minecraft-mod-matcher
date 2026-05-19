@@ -5,30 +5,45 @@
 """
 
 import zipfile
+import logging
 from pathlib import Path
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Callable
 
 import core.file_scanner as file_scanner
 
 
-def create_backup(source_folder: str, dest_folder: str) -> Optional[Path]:
+logger = logging.getLogger(__name__)
+
+
+class BackupError(Exception):
+    """Исключение для ошибок при создании резервной копии."""
+    pass
+
+
+def create_backup(source_folder: str,
+                  dest_folder: str,
+                  progress_callback: Optional[Callable[[int, int], None]] = None) -> Path:
     """Создаёт ZIP-архив с модами (.jar и .zip) из source_folder в dest_folder.
 
     Args:
-        source_folder: Путь к папке с модами
-            dest_folder: Путь к папке для сохранения бэкапа
+        source_folder: Путь к папке с модами.
+        dest_folder: Путь к папке для сохранения бэкапа.
+        progress_callback: Необязательная функция для обновления прогресса (текущий, всего).
             
-        Returns:
-            Путь к созданному архиву или None, если произошла ошибка
-        """
+    Returns:
+        Путь к созданному ZIP-архиву бэкапа.
+
+    Raises:
+        BackupError: Если папка не найдена, модов нет или произошла ошибка записи.
+    """
 
     src = Path(source_folder)
     dst = Path(dest_folder)
 
     if not src.is_dir():
-        print(f"Ошибка: исходная папка не найдена: {src}")
-        return None
+        logger.error(f"Ошибка: исходная папка не найдена: {src}")
+        raise BackupError(f"Исходная папка с модами не найдена по пути:\n{src}")
         
     if not dst.is_dir():
         dst.mkdir(parents=True, exist_ok=True) # Создаёт папку назначения, если её нет
@@ -36,20 +51,25 @@ def create_backup(source_folder: str, dest_folder: str) -> Optional[Path]:
     mod_paths = file_scanner.get_mod_paths(source_folder)
         
     if not mod_paths:
-        print("Нет модов для резервного копирования")
-        return None
+        logger.warning(f"В директории {src} нет модов для резервного копирования")
+        raise BackupError("В выбранной папке не найдено файлов модов (.jar/.zip) для бэкапа.")
         
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     backup_path = dst / f"mods_backup_{timestamp}.zip"
+
+    total_files = len(mod_paths)
         
     try:
         with zipfile.ZipFile(backup_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-            for file in mod_paths:
+            for index, file in enumerate(mod_paths):
                 zipf.write(file, file.name)
+
+                if progress_callback:
+                    progress_callback(index + 1, total_files)
             
-        print(f"Резервная копия создана: {backup_path}")
+        logger.info(f"Резервная копия успешно создана: {backup_path}")
         return backup_path
             
     except Exception as e:
-        print(f"Ошибка при создании резервной копии: {e}")
-        return None
+        logger.exception(f"Ошибка записи ZIP-архива бэкапа: {e}")
+        raise BackupError(f"Не удалось записать архив на диск: {e}")
