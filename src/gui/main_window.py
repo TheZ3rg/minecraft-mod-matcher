@@ -24,7 +24,7 @@ from .widgets.target_version_widget import TargetVersionWidget
 from .widgets.folders_selector_widget import FolderSelectorWidget
 
 from core.mod_info import ModInfo
-from core.config import config
+from core.config import config, get_resource_path
 
 
 logger = logging.getLogger(__name__)
@@ -60,7 +60,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("ModMatcher")
         self.setMinimumSize(1000, 700)
 
-        icon_path = Path(__file__).resolve().parents[1] / "resources" / "icons" / "icon.png"
+        icon_path = get_resource_path("src/resources/icons/icon.png")
         self.setWindowIcon(QIcon(str(icon_path)))
         
         central_widget = QWidget()
@@ -351,6 +351,9 @@ class MainWindow(QMainWindow):
                 # Если не выбрано ни одного мода, берем все
                 mods_to_check = self.mod_list.get_all_mods()
             
+            # запоминаем, какие именно моды мы отправили на проверку
+            self._last_checked_mods = mods_to_check
+            
             # Обновляем UI
             self.status_widget.start_indeterminate_progress("Сверяем версии с базой Modrinth...")
             self.update_btn.setEnabled(False)
@@ -398,37 +401,39 @@ class MainWindow(QMainWindow):
         """Обрабатывает результаты проверки обновлений."""
         self.mod_list.setEnabled(True)
         
-        if not updates_data:
-            self.status_widget.show_info("Обновлений для выбранных параметров не найдено.")
-            self.update_btn.setEnabled(True)
-            self.update_btn.setText("Проверить наличие версий")
-            return
-        
-        # Собираем хэши всех выделенных модов до очистки списка
+        # Запоминаем выделение до перерисовки списка, чтобы восстановить его после поиска обновлений
         selected_mods = self.mod_list.get_selected_mods()
         selected_hashes = {mod.file_hash for mod in selected_mods if mod.file_hash}
         
+        # Делаем пометку для модов, для которых искались обновления
+        if hasattr(self, '_last_checked_mods'):
+            for mod in self._last_checked_mods:
+                mod.update_checked = True
+                
         all_mods = self.mod_list.get_all_mods()
-        for mod in all_mods:
-            if mod.file_hash and mod.file_hash in updates_data:
-                new_version_info = updates_data[mod.file_hash]
-                
-                # Записываем версию и патчноут
-                mod.update_version = new_version_info.get("version_number")
-                mod.update_changelog = new_version_info.get("changelog")
-                
-                # API возвращает список файлов для этой версии. Ищем главный (.jar)
-                files = new_version_info.get("files", [])
-                if files:
-                    # Пытаемся найти файл с пометкой primary, иначе берем первый попавшийся
-                    primary_file = next((f for f in files if f.get("primary")), files[0])
-                    mod.update_filename = primary_file.get("filename")
-                    mod.update_download_url = primary_file.get("url")
+        
+        if updates_data:
+            for mod in all_mods:
+                if mod.file_hash and mod.file_hash in updates_data:
+                    new_version_info = updates_data[mod.file_hash]
+                    
+                    mod.update_version = new_version_info.get("version_number")
+                    mod.update_changelog = new_version_info.get("changelog")
+                    
+                    files = new_version_info.get("files", [])
+                    if files:
+                        primary_file = next((f for f in files if f.get("primary")), files[0])
+                        mod.update_filename = primary_file.get("filename")
+                        mod.update_download_url = primary_file.get("url")
+            
+            self.status_widget.show_success(f"Найдено обновлений: {len(updates_data)}")
+        else:
+            self.status_widget.show_info("Обновлений для выбранных параметров не найдено.")
 
         # Перерисовываем список модов, чтобы применились новые стили
         self.mod_list.update_mod_list(all_mods)
 
-        # Проходимся по новому списку и отмечаем нужные элементы
+        # Восстанавливаем выбранные моды по хешу
         if selected_hashes:
             for i in range(self.mod_list.mod_list.count()):
                 item = self.mod_list.mod_list.item(i)
@@ -436,13 +441,16 @@ class MainWindow(QMainWindow):
                 if mod_info and mod_info.file_hash in selected_hashes:
                     item.setSelected(True)
 
-        self.status_widget.show_success(f"Найдено обновлений: {len(updates_data)}")
-
         self.update_btn.setEnabled(True)
-        if len(self.mod_list.get_selected_mods()) > 0:
-            self.update_btn.setText("Загрузить выбранные")
+        
+        # Проверяем, есть ли вообще моды с обновлениями для переключения режима кнопки
+        if any(mod.has_update for mod in all_mods):
+            if len(self.mod_list.get_selected_mods()) > 0:
+                self.update_btn.setText("Загрузить выбранные")
+            else:
+                self.update_btn.setText("Загрузить все")
         else:
-            self.update_btn.setText("Загрузить все")
+            self.update_btn.setText("Проверить наличие версий")
 
     def _on_updates_error(self, error_msg: str):
         self.status_widget.show_error(error_msg)

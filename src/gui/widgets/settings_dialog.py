@@ -10,7 +10,7 @@ from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout,
 from PySide6.QtCore import Qt, QUrl
 from PySide6.QtGui import QDesktopServices
 
-from core.config import config
+from core.config import config, ROOT_DIR
 
 
 logger = logging.getLogger(__name__)
@@ -107,7 +107,7 @@ class SettingsDialog(QDialog):
 
     def open_logs_folder(self):
         """Открывает директорию с логами в системном проводнике."""
-        log_dir = Path(__file__).resolve().parents[3] / "logs"
+        log_dir = ROOT_DIR / "logs"
         
         if log_dir.exists() and log_dir.is_dir():
             QDesktopServices.openUrl(QUrl.fromLocalFile(str(log_dir)))

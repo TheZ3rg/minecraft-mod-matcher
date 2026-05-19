@@ -3,12 +3,35 @@
 Обеспечивает типизированный доступ ко всем настройкам через синглтон AppConfig.
 """
 
+import sys
 from pathlib import Path
 from PySide6.QtCore import QSettings
 
 
-ROOT_DIR = Path(__file__).resolve().parents[2]
+if getattr(sys, 'frozen', False):
+    ROOT_DIR = Path(sys.executable).parent
+else:
+    ROOT_DIR = Path(__file__).resolve().parents[2]
+
 CONFIG_PATH = ROOT_DIR / "config.ini"
+
+def get_resource_path(relative_path: str) -> Path:
+    """Получает абсолютный путь к ресурсам (иконкам, картинкам).
+    
+    Поддерживает как работу из исходного кода, так и из скомпилированного 
+    через PyInstaller .exe файла (используя временную папку _MEIPASS).
+    """
+    # Безопасно пытаемся получить _MEIPASS. Если его нет, вернется None
+    meipass = getattr(sys, '_MEIPASS', None)
+    
+    if meipass:
+        # Мы запущены как скомпилированный .exe
+        base_path = Path(meipass)
+    else:
+        # Мы запущены как обычный Python-скрипт из IDE
+        base_path = Path(__file__).resolve().parents[2]
+
+    return base_path / relative_path
 
 
 class AppConfig:

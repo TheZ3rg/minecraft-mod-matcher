@@ -14,8 +14,9 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QListWidget,
 from PySide6.QtCore import QSize, Signal, Qt, QEvent
 from PySide6.QtGui import QFont, QColor, QIcon, QPixmap
 
-from core.mod_info import ModInfo
 import core.icon_loader as icon_loader
+from core.mod_info import ModInfo
+from core.config import get_resource_path
 
 
 logger = logging.getLogger(__name__)
@@ -156,7 +157,7 @@ class ModListWidget(QWidget):
         name_label.setToolTip(full_name)
         
         # Цвет текста, зависит от наличия обновления
-        if mod_info.has_update:
+        if mod_info.update_checked and not mod_info.has_update:
             name_label.setStyleSheet("color: #8b76a0;") 
         else:
             name_label.setStyleSheet("color: #ceb2ec;")
@@ -206,7 +207,7 @@ class ModListWidget(QWidget):
         Returns:
             QIcon: Иконка для отображения в списке модов.
         """
-        default_icon_path = Path(__file__).resolve().parents[2] / "resources" / "icons" / "default_mod_icon.png"
+        default_icon_path = get_resource_path("src/resources/icons/default_mod_icon.png")
         
         pixmap = QPixmap()
 

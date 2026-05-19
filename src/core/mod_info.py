@@ -60,6 +60,7 @@ class ModInfo:
     api_icon_data: Optional[bytes] = None
     
     # --- Данные от API об обновлении (Целевая версия для скачивания) ---
+    update_checked: bool = False
     update_filename: Optional[str] = None
     update_version: Optional[str] = None
     update_changelog: Optional[str] = None
