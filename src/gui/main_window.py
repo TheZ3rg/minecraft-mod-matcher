@@ -175,6 +175,8 @@ class MainWindow(QMainWindow):
         self.folders_selector.source_folder_changed.connect(self.on_source_folder_changed)
         # Запуск обработки выбора мода в списке
         self.mod_list.mod_selected.connect(self.on_mod_selected)
+        # Динамическое обновление кнопки скачивания при выделении модов
+        self.mod_list.mod_list.itemSelectionChanged.connect(self.update_download_btn_text)
 
     def open_settings(self):
         """Открывает диалоговое окно настроек."""
@@ -379,6 +381,18 @@ class MainWindow(QMainWindow):
                 return
                 
             self._start_download_process(mods_to_download, dest_folder)
+
+    def update_download_btn_text(self) -> None:
+        """Обновляет текст кнопки загрузки при выделении модов в списке.
+        Срабатывает только на этапе, когда есть моды готовые к загрузке.
+        """
+        current_text = self.update_btn.text()
+        
+        if current_text.startswith("Загрузить"):
+            if len(self.mod_list.get_selected_mods()) > 0:
+                self.update_btn.setText("Загрузить выбранные")
+            else:
+                self.update_btn.setText("Загрузить все")
 
     def _on_updates_found(self, updates_data: dict):
         """Обрабатывает результаты проверки обновлений."""
