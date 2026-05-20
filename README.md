@@ -19,9 +19,9 @@ The application finds mods from your chosen directory, then finds them in the ma
 
 ## 🚀 Installation & Usage (For Users)
 
-**Step 1.** Go to the [Releases](../../releases) page in this repository.
-**Step 2.** Download the `ModMatcher.exe` from the latest release.
-**Step 3.** Run `ModMatcher.exe`.
+1. Go to the [Releases](../../releases) page in this repository.
+2. Download the `ModMatcher.exe` from the latest release.
+3. Run `ModMatcher.exe`.
 
 > **⚠️ Note:** Since the application is compiled into a single executable without a paid digital signature, sometimes Windows Defender or SmartScreen might show a warning on the first launch. Click *"More info"* -> *"Run anyway"*.
 
