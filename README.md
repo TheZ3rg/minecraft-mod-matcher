@@ -11,7 +11,7 @@ The application finds mods from your chosen directory, then finds them in the ma
 ## ✨ Key Features
 
 * 🔍 **Smart Scanning:** Identifies mods by their SHA-1 hashes via the Modrinth API. If a mod isn't in the database, the app will parse its metadata locally (`fabric.mod.json`, `mods.toml`, `quilt.mod.json`, etc.).
-* ⚙️ **Multi-Loader Support:** Fully supports Fabric, Forge, NeoForge, Quilt, and Legacy Forge.
+* ⚙️ **Multi-Loader Support:** Fully supports Fabric, Forge, NeoForge, Quilt etc.
 * 💾 **Backup System:** Create a ZIP archive of your current mods folder with a single click so you never lose your data during updates.
 * ⚡ **Multithreading:** Asynchronous file downloading, icon fetching, and update checking — the interface remains smooth and responsive at all times.
 * 🎯 **Flexible Downloading:** Mass update all your mods at once, or cherry-pick specific ones to download.
